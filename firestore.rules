@@ -26,7 +26,11 @@ service cloud.firestore {
      && ((request.resource.data.predictorRole=='creator'&&session(id).creatorUserId==request.auth.uid)||(request.resource.data.predictorRole=='partner'&&session(id).partnerUserId==request.auth.uid));
    }
   }
-  match /publicTokens/{token}{ allow read,write:false; }
-  match /payments/{id}{ allow read,write:false; }
+  match /publicTokens/{token} {
+   allow read, write: if false;
+  }
+  match /payments/{id} {
+   allow read, write: if false;
+  }
  }
 }
