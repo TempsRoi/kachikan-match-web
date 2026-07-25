@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toPng } from "html-to-image";
 import { closeness, questions, worldFor } from "@/lib/questions";
+import { apiFetch, firebaseEnabled } from "@/lib/firebase";
 
 type Saved = {
   creator: string;
@@ -19,14 +20,32 @@ export function StartGame() {
   const router = useRouter();
   const [creator, setCreator] = useState("");
   const [partner, setPartner] = useState("");
-  function begin() {
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function begin() {
     if (!creator.trim() || !partner.trim()) return;
-    const token = crypto.randomUUID().replaceAll("-", "").slice(0, 24);
-    localStorage.setItem(
-      key(token),
-      JSON.stringify({ creator, partner, answers: [], predictions: [] }),
-    );
-    router.push(`/play/${token}?role=creator`);
+    setBusy(true);
+    setError("");
+    try {
+      let token = crypto.randomUUID().replaceAll("-", "").slice(0, 24);
+      if (firebaseEnabled) {
+        const response = await apiFetch("/api/sessions", {
+          method: "POST",
+          body: JSON.stringify({ creatorName: creator, partnerName: partner }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        token = data.token;
+      }
+      localStorage.setItem(
+        key(token),
+        JSON.stringify({ creator, partner, answers: [], predictions: [] }),
+      );
+      router.push(`/play/${token}?role=creator`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "開始できませんでした");
+      setBusy(false);
+    }
   }
   return (
     <Shell>
@@ -56,9 +75,10 @@ export function StartGame() {
             placeholder="例：はる"
           />
         </div>
-        <button className="button" onClick={begin}>
-          質問に答える →
+        <button className="button" onClick={begin} disabled={busy}>
+          {busy ? "準備しています…" : "質問に答える →"}
         </button>
+        {error && <p className="error-message">{error}</p>}
         <p className="notice">
           回答内容は、招待した相手と結果を確認するために共有されます。
         </p>
@@ -72,25 +92,62 @@ export function PlayGame({ token }: { token: string }) {
   const [idx, setIdx] = useState(0);
   const [phase, setPhase] = useState<"answer" | "predict">("answer");
   const [role, setRole] = useState<"creator" | "partner">("creator");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   useEffect(() => {
-    const s = localStorage.getItem(key(token));
-    if (!s) {
+    const requestedRole =
+      new URLSearchParams(location.search).get("role") === "partner"
+        ? "partner"
+        : "creator";
+    setRole(requestedRole);
+    const local = localStorage.getItem(key(token));
+    if (local) {
+      setSaved(JSON.parse(local));
+      return;
+    }
+    if (!firebaseEnabled || requestedRole !== "partner") {
       router.push("/");
       return;
     }
-    setSaved(JSON.parse(s));
-    setRole(
-      new URLSearchParams(location.search).get("role") === "partner"
-        ? "partner"
-        : "creator",
-    );
+    apiFetch(`/api/sessions/${token}/join`, { method: "POST" })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        const initial: Saved = {
+          creator: data.creator,
+          partner: data.partner,
+          answers: [],
+          predictions: [],
+          partnerAnswers: [],
+          partnerPredictions: [],
+        };
+        localStorage.setItem(key(token), JSON.stringify(initial));
+        setSaved(initial);
+      })
+      .catch((cause) =>
+        setError(
+          cause instanceof Error ? cause.message : "招待を開けませんでした",
+        ),
+      );
   }, [token, router]);
-  if (!saved) return null;
+  if (!saved)
+    return (
+      <Shell>
+        <div className="panel">
+          <h1>{error || "招待を確認しています…"}</h1>
+          {error && (
+            <a className="button secondary" href="/">
+              TOPへ戻る
+            </a>
+          )}
+        </div>
+      </Shell>
+    );
   const current = saved;
   const predictionQs = questions.filter((q) => q.prediction);
   const q = phase === "answer" ? questions[idx] : predictionQs[idx];
   const target = role === "creator" ? current.partner : current.creator;
-  function choose(choice: number) {
+  async function choose(choice: number) {
     const field =
       phase === "answer"
         ? role === "creator"
@@ -109,8 +166,34 @@ export function PlayGame({ token }: { token: string }) {
     else if (phase === "answer") {
       setPhase("predict");
       setIdx(0);
-    } else
+    } else {
+      if (firebaseEnabled) {
+        setSaving(true);
+        try {
+          const answers =
+            role === "creator" ? next.answers : next.partnerAnswers || [];
+          const predictions =
+            role === "creator"
+              ? next.predictions
+              : next.partnerPredictions || [];
+          const response = await apiFetch(`/api/sessions/${token}/responses`, {
+            method: "POST",
+            body: JSON.stringify({ role, answers, predictions }),
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error);
+        } catch (cause) {
+          setSaving(false);
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "回答を保存できませんでした",
+          );
+          return;
+        }
+      }
       router.push(role === "creator" ? `/invite/${token}` : `/result/${token}`);
+    }
   }
   const total = phase === "answer" ? 24 : 8;
   return (
@@ -141,6 +224,8 @@ export function PlayGame({ token }: { token: string }) {
         <p className="notice">
           正解・不正解はありません。いちばん近いものを直感で選んでください。
         </p>
+        {saving && <p className="notice">回答を安全に保存しています…</p>}
+        {error && <p className="error-message">{error}</p>}
       </div>
     </Shell>
   );
@@ -149,9 +234,20 @@ export function Invite({ token }: { token: string }) {
   const router = useRouter();
   const [saved, setSaved] = useState<Saved | null>(null);
   const [copied, setCopied] = useState(false);
+  const [completed, setCompleted] = useState(false);
   useEffect(() => {
     const s = localStorage.getItem(key(token));
     if (s) setSaved(JSON.parse(s));
+    if (firebaseEnabled) {
+      const timer = window.setInterval(async () => {
+        const response = await apiFetch(`/api/sessions/${token}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.status === "completed") setCompleted(true);
+        }
+      }, 5000);
+      return () => window.clearInterval(timer);
+    }
   }, [token]);
   if (!saved) return null;
   const current = saved;
@@ -204,9 +300,19 @@ export function Invite({ token }: { token: string }) {
         >
           共有メニューを開く
         </button>
-        <button className="button secondary" onClick={simulate}>
-          デモ用：相手の回答を受け取る
-        </button>
+        {firebaseEnabled ? (
+          <button
+            className="button secondary"
+            disabled={!completed}
+            onClick={() => router.push(`/result/${token}`)}
+          >
+            {completed ? "結果を見る →" : "相手の回答を待っています…"}
+          </button>
+        ) : (
+          <button className="button secondary" onClick={simulate}>
+            デモ用：相手の回答を受け取る
+          </button>
+        )}
         <p className="notice">
           相手が回答すると、ふたりの結果を確認できます。この画面は閉じても大丈夫です。
         </p>
@@ -216,12 +322,42 @@ export function Invite({ token }: { token: string }) {
 }
 export function Result({ token }: { token: string }) {
   const [s, setS] = useState<Saved | null>(null);
+  const [error, setError] = useState("");
   const card = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const raw = localStorage.getItem(key(token));
-    if (raw) setS(JSON.parse(raw));
+    if (firebaseEnabled) {
+      apiFetch(`/api/sessions/${token}/result`)
+        .then(async (response) => {
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error);
+          localStorage.setItem(key(token), JSON.stringify(data));
+          setS(data);
+        })
+        .catch((cause) =>
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "結果を取得できませんでした",
+          ),
+        );
+    } else {
+      const raw = localStorage.getItem(key(token));
+      if (raw) setS(JSON.parse(raw));
+    }
   }, [token]);
-  if (!s) return null;
+  if (!s)
+    return (
+      <Shell>
+        <div className="panel">
+          <h1>{error || "結果を読み込んでいます…"}</h1>
+          {error && (
+            <a className="button secondary" href={`/invite/${token}`}>
+              招待画面へ戻る
+            </a>
+          )}
+        </div>
+      </Shell>
+    );
   const b = s.partnerAnswers || randomAnswers();
   const score = closeness(s.answers, b);
   const wa = worldFor(s.answers),

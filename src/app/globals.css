@@ -355,6 +355,15 @@ footer div {
   cursor: pointer;
   width: 100%;
 }
+.button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+.error-message {
+  color: #a74336;
+  font-size: 13px;
+  line-height: 1.6;
+}
 .panel > a.button {
   display: block;
   text-align: center;
