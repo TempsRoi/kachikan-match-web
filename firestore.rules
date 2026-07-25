@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+  function signedIn(){ return request.auth != null; }
+  function session(id){ return get(/databases/$(database)/documents/sessions/$(id)).data; }
+  match /sessions/{id} {
+   allow create: if signedIn() && request.resource.data.creatorUserId==request.auth.uid
+    && request.resource.data.paid==false && request.resource.data.keys().hasOnly(['publicToken','creatorName','partnerName','creatorUserId','partnerUserId','status','paid','createdAt','updatedAt','completedAt','expiresAt']);
+   allow read: if signedIn() && (resource.data.creatorUserId==request.auth.uid || resource.data.partnerUserId==request.auth.uid);
+   allow update: if signedIn() && request.resource.data.paid==resource.data.paid
+    && request.resource.data.creatorUserId==resource.data.creatorUserId
+    && (resource.data.creatorUserId==request.auth.uid || (resource.data.partnerUserId==null && request.resource.data.partnerUserId==request.auth.uid) || resource.data.partnerUserId==request.auth.uid);
+   match /participants/{role} {
+    allow read: if signedIn() && (session(id).creatorUserId==request.auth.uid || session(id).partnerUserId==request.auth.uid);
+    allow create,update: if signedIn() && ((role=='creator'&&session(id).creatorUserId==request.auth.uid)||(role=='partner'&&session(id).partnerUserId==request.auth.uid));
+   }
+   match /answers/{answerId} {
+    allow read: if signedIn() && (session(id).creatorUserId==request.auth.uid || session(id).partnerUserId==request.auth.uid);
+    allow create,update: if signedIn() && session(id).status!='completed'
+     && ((request.resource.data.participantRole=='creator'&&session(id).creatorUserId==request.auth.uid)||(request.resource.data.participantRole=='partner'&&session(id).partnerUserId==request.auth.uid))
+     && request.resource.data.keys().hasOnly(['participantRole','questionId','answerValue','createdAt','updatedAt']);
+   }
+   match /predictions/{predictionId} {
+    allow read: if signedIn() && (session(id).creatorUserId==request.auth.uid || session(id).partnerUserId==request.auth.uid);
+    allow create,update: if signedIn() && session(id).status!='completed'
+     && ((request.resource.data.predictorRole=='creator'&&session(id).creatorUserId==request.auth.uid)||(request.resource.data.predictorRole=='partner'&&session(id).partnerUserId==request.auth.uid));
+   }
+  }
+  match /publicTokens/{token}{ allow read,write:false; }
+  match /payments/{id}{ allow read,write:false; }
+ }
+}
