@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toPng } from "html-to-image";
 import { closeness, questions, worldFor } from "@/lib/questions";
-import { apiFetch, firebaseEnabled } from "@/lib/firebase";
+import { apiJson, firebaseEnabled } from "@/lib/firebase";
 
 type Saved = {
   creator: string;
@@ -29,12 +29,10 @@ export function StartGame() {
     try {
       let token = crypto.randomUUID().replaceAll("-", "").slice(0, 24);
       if (firebaseEnabled) {
-        const response = await apiFetch("/api/sessions", {
+        const data = await apiJson<{ token: string }>("/api/sessions", {
           method: "POST",
           body: JSON.stringify({ creatorName: creator, partnerName: partner }),
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
         token = data.token;
       }
       localStorage.setItem(
@@ -109,10 +107,12 @@ export function PlayGame({ token }: { token: string }) {
       router.push("/");
       return;
     }
-    apiFetch(`/api/sessions/${token}/join`, { method: "POST" })
-      .then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
+    apiJson<{
+      creator: string;
+      partner: string;
+      role: "creator" | "partner";
+    }>(`/api/sessions/${token}/join`, { method: "POST" })
+      .then((data) => {
         const initial: Saved = {
           creator: data.creator,
           partner: data.partner,
@@ -176,12 +176,10 @@ export function PlayGame({ token }: { token: string }) {
             role === "creator"
               ? next.predictions
               : next.partnerPredictions || [];
-          const response = await apiFetch(`/api/sessions/${token}/responses`, {
+          await apiJson(`/api/sessions/${token}/responses`, {
             method: "POST",
             body: JSON.stringify({ role, answers, predictions }),
           });
-          const data = await response.json();
-          if (!response.ok) throw new Error(data.error);
         } catch (cause) {
           setSaving(false);
           setError(
@@ -240,11 +238,12 @@ export function Invite({ token }: { token: string }) {
     if (s) setSaved(JSON.parse(s));
     if (firebaseEnabled) {
       const timer = window.setInterval(async () => {
-        const response = await apiFetch(`/api/sessions/${token}`);
-        if (response.ok) {
-          const data = await response.json();
+        try {
+          const data = await apiJson<{ status: string }>(
+            `/api/sessions/${token}`,
+          );
           if (data.status === "completed") setCompleted(true);
-        }
+        } catch {}
       }, 5000);
       return () => window.clearInterval(timer);
     }
@@ -326,10 +325,8 @@ export function Result({ token }: { token: string }) {
   const card = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (firebaseEnabled) {
-      apiFetch(`/api/sessions/${token}/result`)
-        .then(async (response) => {
-          const data = await response.json();
-          if (!response.ok) throw new Error(data.error);
+      apiJson<Saved>(`/api/sessions/${token}/result`)
+        .then((data) => {
           localStorage.setItem(key(token), JSON.stringify(data));
           setS(data);
         })

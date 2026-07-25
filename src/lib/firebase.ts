@@ -33,3 +33,21 @@ export async function apiFetch(path: string, init?: RequestInit) {
     },
   });
 }
+
+export async function apiJson<T = Record<string, unknown>>(
+  path: string,
+  init?: RequestInit,
+) {
+  const response = await apiFetch(path, init);
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(
+      response.status === 404
+        ? "サーバーAPIがまだ公開されていません。Vercelを再デプロイしてください。"
+        : "サーバーでエラーが発生しました。Vercelの環境変数とログを確認してください。",
+    );
+  }
+  const data = (await response.json()) as T & { error?: string };
+  if (!response.ok) throw new Error(data.error || "通信に失敗しました");
+  return data;
+}
