@@ -53,6 +53,7 @@ export async function GET(
   return NextResponse.json({
     creator: session.creatorName,
     partner: session.partnerName,
+    paid: session.paid === true,
     answers: questions.map((q) => answerMap.get(`creator_${q.id}`)),
     partnerAnswers: questions.map((q) => answerMap.get(`partner_${q.id}`)),
     predictions: predictionQuestions.map((q) =>

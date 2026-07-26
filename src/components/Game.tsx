@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { toPng } from "html-to-image";
+import { toBlob } from "html-to-image";
 import { closeness, questions, worldFor } from "@/lib/questions";
 import { apiJson, firebaseEnabled } from "@/lib/firebase";
 
@@ -12,6 +12,7 @@ type Saved = {
   predictions: number[];
   partnerAnswers?: number[];
   partnerPredictions?: number[];
+  paid?: boolean;
 };
 type SelfProfile = {
   displayName: string;
@@ -39,6 +40,14 @@ function saveSelfProfile(displayName: string, answers: number[]) {
       savedAt: new Date().toISOString(),
     } satisfies SelfProfile),
   );
+}
+function blobToDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
 }
 
 export function StartGame() {
@@ -492,6 +501,10 @@ export function Invite({ token }: { token: string }) {
 export function Result({ token }: { token: string }) {
   const [s, setS] = useState<Saved | null>(null);
   const [error, setError] = useState("");
+  const [savingImage, setSavingImage] = useState(false);
+  const [imageMessage, setImageMessage] = useState("");
+  const [reportUnlocked, setReportUnlocked] = useState(false);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
   const card = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (firebaseEnabled) {
@@ -499,6 +512,12 @@ export function Result({ token }: { token: string }) {
         .then((data) => {
           localStorage.setItem(key(token), JSON.stringify(data));
           setS(data);
+          setReportUnlocked(
+            Boolean(
+              data.paid ||
+              new URLSearchParams(window.location.search).get("paid") === "1",
+            ),
+          );
         })
         .catch((cause) =>
           setError(
@@ -509,7 +528,12 @@ export function Result({ token }: { token: string }) {
         );
     } else {
       const raw = localStorage.getItem(key(token));
-      if (raw) setS(JSON.parse(raw));
+      if (raw) {
+        setS(JSON.parse(raw));
+        setReportUnlocked(
+          new URLSearchParams(window.location.search).get("paid") === "1",
+        );
+      }
     }
   }, [token]);
   if (!s)
@@ -525,7 +549,8 @@ export function Result({ token }: { token: string }) {
         </div>
       </Shell>
     );
-  const b = s.partnerAnswers || randomAnswers();
+  const result = s;
+  const b = result.partnerAnswers || randomAnswers();
   const score = closeness(s.answers, b);
   const wa = worldFor(s.answers),
     wb = worldFor(b);
@@ -609,13 +634,127 @@ export function Result({ token }: { token: string }) {
         8) *
         100,
     );
+  const creatorUnderstanding = understand(s.predictions, b);
+  const partnerUnderstanding = understand(s.partnerPredictions, s.answers);
+  const lowestCategory = categoryScores.at(-1)?.category || "価値観";
+  const relationshipManual = [
+    {
+      title: "連絡と会話",
+      text:
+        s.answers[1] === b[1]
+          ? `返信の心地よいペースが近いふたりです。連絡頻度より、今の自然なリズムを大切にすると安心が続きます。`
+          : `${s.creator}さんは「${questions[1].options[s.answers[1]]}」、${s.partner}さんは「${questions[1].options[b[1]]}」。返信速度を好意の大きさと結びつけず、忙しい日の目安を共有すると安心です。`,
+    },
+    {
+      title: "疲れたときの支え方",
+      text:
+        s.answers[9] === b[9]
+          ? `疲れた日の回復方法が似ています。相手がしんどそうなときも、自分が嬉しい支え方を提案しやすいふたりです。`
+          : `${s.creator}さんは「${questions[9].options[s.answers[9]]}」、${s.partner}さんは「${questions[9].options[b[9]]}」で回復します。「話す？そっとしておく？」と一言確認するのが最良の気遣いです。`,
+    },
+    {
+      title: "予定と将来",
+      text:
+        s.answers[20] === b[20]
+          ? `将来を考える解像度が近く、ふたりの予定を相談しやすい傾向です。小さな楽しみを一緒に決めると関係が育ちます。`
+          : `${s.creator}さんは「${questions[20].options[s.answers[20]]}」、${s.partner}さんは「${questions[20].options[b[20]]}」。計画する範囲と自由に残す範囲を分けると、どちらも窮屈になりません。`,
+    },
+    {
+      title: "好意の伝わり方",
+      text: closenessMoment,
+    },
+  ];
+  async function startCheckout() {
+    setCheckoutBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.url) throw new Error(data.error);
+      window.location.href = data.url;
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "決済を開始できませんでした",
+      );
+      setCheckoutBusy(false);
+    }
+  }
   async function download() {
     if (!card.current) return;
-    const data = await toPng(card.current, { pixelRatio: 2 });
-    const a = document.createElement("a");
-    a.download = "kachikan-match.png";
-    a.href = data;
-    a.click();
+    setSavingImage(true);
+    setImageMessage("");
+    const cardElement = card.current;
+    const cardImages = Array.from(cardElement.querySelectorAll("img"));
+    const originalSources = cardImages.map((image) =>
+      image.getAttribute("src"),
+    );
+    try {
+      await Promise.all(
+        cardImages.map(async (image) => {
+          const response = await fetch(image.currentSrc || image.src, {
+            cache: "force-cache",
+          });
+          if (!response.ok) throw new Error("世界観画像を取得できませんでした");
+          image.src = await blobToDataUrl(await response.blob());
+          await image.decode().catch(() => undefined);
+        }),
+      );
+      const blob = await toBlob(cardElement, {
+        pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+        cacheBust: false,
+        backgroundColor: "#edf5ef",
+      });
+      if (!blob) throw new Error("画像を生成できませんでした");
+      const filename = `価値観マッチ-${result.creator}-${result.partner}.png`;
+      const file = new File([blob], filename, { type: "image/png" });
+      const shareData = {
+        files: [file],
+        title: "価値観マッチ",
+        text: `${result.creator}さんと${result.partner}さんの価値観マッチ`,
+      };
+
+      if (
+        typeof navigator.share === "function" &&
+        navigator.canShare?.(shareData)
+      ) {
+        try {
+          await navigator.share(shareData);
+          setImageMessage(
+            "共有メニューを開きました。「画像を保存」を選んでください。",
+          );
+        } catch (cause) {
+          if (cause instanceof DOMException && cause.name === "AbortError") {
+            setImageMessage("保存をキャンセルしました。");
+          } else {
+            throw cause;
+          }
+        }
+      } else {
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = objectUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
+        setImageMessage("PNG画像をダウンロードしました。");
+      }
+    } catch {
+      setImageMessage(
+        "画像を保存できませんでした。ページを再読み込みして、もう一度お試しください。",
+      );
+    } finally {
+      cardImages.forEach((image, index) => {
+        const source = originalSources[index];
+        if (source) image.setAttribute("src", source);
+      });
+      setSavingImage(false);
+    }
   }
   return (
     <Shell>
@@ -647,12 +786,12 @@ export function Result({ token }: { token: string }) {
             {label}
           </div>
           <div className="stat">
-            相互理解度<strong>{understand(s.predictions, b)}%</strong>
+            相互理解度<strong>{creatorUnderstanding}%</strong>
             {s.creator} → {s.partner}
           </div>
           <div className="stat">
             相互理解度
-            <strong>{understand(s.partnerPredictions, s.answers)}%</strong>
+            <strong>{partnerUnderstanding}%</strong>
             {s.partner} → {s.creator}
           </div>
           <div className="stat">
@@ -739,15 +878,187 @@ export function Result({ token }: { token: string }) {
             <p>{closenessMoment}</p>
           </div>
         </section>
-        <button className="button" onClick={download}>
-          結果カードをPNGで保存
+        {reportUnlocked ? (
+          <section className="premium-report">
+            <header className="premium-header">
+              <div>
+                <p className="eyebrow">FULL REPORT</p>
+                <h2>ふたりの詳細レポート</h2>
+                <p>24の回答と予想から、関係を育てるヒントを読み解きました。</p>
+              </div>
+              <span>解放済み</span>
+            </header>
+
+            <section className="premium-section">
+              <h3>ふたりの関係トリセツ</h3>
+              <div className="manual-grid">
+                {relationshipManual.map((item) => (
+                  <article key={item.title}>
+                    <h4>{item.title}</h4>
+                    <p>{item.text}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="premium-section">
+              <h3>8カテゴリの詳しい比較</h3>
+              <div className="category-bars premium-bars">
+                {categoryScores.map(({ category, score }) => (
+                  <div key={category}>
+                    <span>{category}</span>
+                    <i>
+                      <b style={{ width: `${score}%` }} />
+                    </i>
+                    <strong>{score}%</strong>
+                  </div>
+                ))}
+              </div>
+              <p className="premium-insight">
+                「{lowestCategory}
+                」は一致率が低めですが、関係の弱点ではありません。次に一緒に選ぶ場面で、お互いの理由を一度聞いてから決めると、違いが役割分担に変わります。
+              </p>
+            </section>
+
+            <section className="premium-section">
+              <h3>相手をどれくらい分かっていた？</h3>
+              <div className="understanding-detail">
+                <article>
+                  <strong>{creatorUnderstanding}%</strong>
+                  <h4>
+                    {s.creator} → {s.partner}
+                  </h4>
+                  <p>
+                    {creatorUnderstanding >= 75
+                      ? "普段の言葉や行動から、相手の考えをよく受け取れています。"
+                      : "まだ知らない一面があるからこそ、これからの会話に発見があります。"}
+                  </p>
+                </article>
+                <article>
+                  <strong>{partnerUnderstanding}%</strong>
+                  <h4>
+                    {s.partner} → {s.creator}
+                  </h4>
+                  <p>
+                    {partnerUnderstanding >= 75
+                      ? "相手らしい選び方を、かなり具体的に想像できています。"
+                      : "予想との違いは、相手の本音を知るための良い入口です。"}
+                  </p>
+                </article>
+              </div>
+              <div className="prediction-table">
+                {predictionQuestions.map((question, predictionIndex) => {
+                  const questionIndex = questions.indexOf(question);
+                  const creatorHit =
+                    s.predictions[predictionIndex] === b[questionIndex];
+                  const partnerHit =
+                    s.partnerPredictions?.[predictionIndex] ===
+                    s.answers[questionIndex];
+                  return (
+                    <div key={question.id}>
+                      <span>{question.question}</span>
+                      <b className={creatorHit ? "hit" : "miss"}>
+                        {s.creator} {creatorHit ? "✓" : "発見"}
+                      </b>
+                      <b className={partnerHit ? "hit" : "miss"}>
+                        {s.partner} {partnerHit ? "✓" : "発見"}
+                      </b>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="premium-section">
+              <h3>全24問の答え合わせ</h3>
+              <div className="all-answers">
+                {questions.map((question, index) => (
+                  <article key={question.id}>
+                    <div>
+                      <small>{question.category}</small>
+                      <h4>{question.question}</h4>
+                    </div>
+                    <p>
+                      <b>{s.creator}</b>
+                      {question.options[s.answers[index]]}
+                    </p>
+                    <p>
+                      <b>{s.partner}</b>
+                      {question.options[b[index]]}
+                    </p>
+                    <span
+                      className={s.answers[index] === b[index] ? "same" : ""}
+                    >
+                      {s.answers[index] === b[index]
+                        ? "共通点"
+                        : "違いもヒント"}
+                    </span>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="premium-section action-plan">
+              <p className="eyebrow">NEXT 7 DAYS</p>
+              <h3>ふたりにおすすめの3つのアクション</h3>
+              <ol>
+                <li>
+                  <b>15分だけ答えの理由を話す</b>「{lowestCategory}
+                  」から1問選び、結論ではなく理由を聞いてみる。
+                </li>
+                <li>
+                  <b>小さな予定をひとつ作る</b>
+                  共通点の「{categoryScores[0].category}
+                  」を生かした時間を一緒に作る。
+                </li>
+                <li>
+                  <b>好意の伝わり方を交換する</b>
+                  最近うれしかった相手の行動を、ひとつずつ言葉にする。
+                </li>
+              </ol>
+            </section>
+          </section>
+        ) : (
+          <section className="premium-lock">
+            <span className="lock-mark">＋</span>
+            <p className="eyebrow">FULL REPORT</p>
+            <h2>ふたりの関係を、もう一歩深く。</h2>
+            <p>
+              一致率だけでは見えない「支え方」「好意の伝わり方」「すれ違いやすい場面」を、24問すべてから読み解きます。
+            </p>
+            <div className="premium-features">
+              <span>関係トリセツ</span>
+              <span>8カテゴリ分析</span>
+              <span>予想の答え合わせ</span>
+              <span>全24問比較</span>
+              <span>7日間アクション</span>
+            </div>
+            <div className="price">
+              <strong>480円</strong>
+              <small>買い切り・ふたりで閲覧</small>
+            </div>
+            <button
+              className="button premium-button"
+              onClick={startCheckout}
+              disabled={checkoutBusy}
+            >
+              {checkoutBusy
+                ? "決済画面を準備しています…"
+                : "詳細レポートを解放する →"}
+            </button>
+            {error && <p className="error-message">{error}</p>}
+          </section>
+        )}
+        <button className="button" onClick={download} disabled={savingImage}>
+          {savingImage ? "画像を作成しています…" : "結果カードをPNGで保存"}
         </button>
-        <button
-          className="button secondary"
-          onClick={() => alert("開発用モック決済：詳細レポートを解放しました")}
+        <p
+          className={`image-save-message ${imageMessage.includes("できません") ? "is-error" : ""}`}
+          aria-live="polite"
         >
-          480円で詳細レポートを解放（モック）
-        </button>
+          {imageMessage ||
+            "iPhoneでは共有メニューが開きます。「画像を保存」を選択してください。"}
+        </p>
         <a className="button secondary" href="/">
           サイトTOPへ戻る
         </a>
