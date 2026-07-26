@@ -344,6 +344,48 @@ footer div {
   border-radius: 8px;
   font-size: 16px;
 }
+.saved-profile {
+  display: grid;
+  grid-template-columns: 104px 1fr;
+  gap: 18px;
+  align-items: center;
+  margin: 24px 0;
+  padding: 16px;
+  border: 1px solid #cddbd2;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #edf4ef, #fffaf2);
+}
+.saved-profile > img {
+  width: 104px;
+  height: 104px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 4px solid #fff;
+  box-shadow: 0 8px 20px #34483c20;
+}
+.saved-profile h2 {
+  margin: 2px 0 4px;
+  font: 600 20px var(--font-serif);
+}
+.saved-profile div > p:not(.eyebrow) {
+  margin: 0 0 10px;
+  color: #68736e;
+  font-size: 12px;
+}
+.reuse-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.reuse-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--green);
+}
 .button {
   border: 0;
   background: var(--green);
@@ -830,6 +872,17 @@ footer div {
   .panel h1 {
     font-size: 26px;
     line-height: 1.5;
+  }
+  .saved-profile {
+    grid-template-columns: 76px 1fr;
+    padding: 13px;
+  }
+  .saved-profile > img {
+    width: 76px;
+    height: 76px;
+  }
+  .saved-profile h2 {
+    font-size: 17px;
   }
   .options {
     margin: 22px 0 10px;

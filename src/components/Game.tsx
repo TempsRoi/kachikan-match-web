@@ -13,8 +13,33 @@ type Saved = {
   partnerAnswers?: number[];
   partnerPredictions?: number[];
 };
+type SelfProfile = {
+  displayName: string;
+  answers: number[];
+  savedAt: string;
+};
 const key = (token: string) => `km:${token}`;
+const selfKey = "km:self-profile";
 const randomAnswers = () => questions.map((_, i) => (i * 7 + 2) % 4);
+function loadSelfProfile(): SelfProfile | null {
+  try {
+    const value = JSON.parse(localStorage.getItem(selfKey) || "null");
+    return value?.answers?.length === questions.length ? value : null;
+  } catch {
+    return null;
+  }
+}
+function saveSelfProfile(displayName: string, answers: number[]) {
+  if (answers.length !== questions.length) return;
+  localStorage.setItem(
+    selfKey,
+    JSON.stringify({
+      displayName,
+      answers,
+      savedAt: new Date().toISOString(),
+    } satisfies SelfProfile),
+  );
+}
 
 export function StartGame() {
   const router = useRouter();
@@ -22,6 +47,15 @@ export function StartGame() {
   const [partner, setPartner] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [profile, setProfile] = useState<SelfProfile | null>(null);
+  const [reuseAnswers, setReuseAnswers] = useState(true);
+  useEffect(() => {
+    const stored = loadSelfProfile();
+    if (stored) {
+      setProfile(stored);
+      setCreator(stored.displayName);
+    }
+  }, []);
   async function begin() {
     if (!creator.trim() || !partner.trim()) return;
     setBusy(true);
@@ -37,7 +71,12 @@ export function StartGame() {
       }
       localStorage.setItem(
         key(token),
-        JSON.stringify({ creator, partner, answers: [], predictions: [] }),
+        JSON.stringify({
+          creator,
+          partner,
+          answers: reuseAnswers && profile ? profile.answers : [],
+          predictions: [],
+        }),
       );
       router.push(`/play/${token}?role=creator`);
     } catch (cause) {
@@ -55,6 +94,29 @@ export function StartGame() {
           教えてください。
         </h1>
         <p>ニックネームで大丈夫。本名やメールアドレスは必要ありません。</p>
+        {profile && (
+          <section className="saved-profile">
+            <img
+              src={worldFor(profile.answers).image}
+              alt={`${worldFor(profile.answers).name}の世界観`}
+            />
+            <div>
+              <p className="eyebrow">SAVED ANSWERS</p>
+              <h2>
+                {profile.displayName}さん · {worldFor(profile.answers).name}
+              </h2>
+              <p>前回の自分の回答24問が保存されています。</p>
+              <label className="reuse-toggle">
+                <input
+                  type="checkbox"
+                  checked={reuseAnswers}
+                  onChange={(event) => setReuseAnswers(event.target.checked)}
+                />
+                <span>保存した回答を使う</span>
+              </label>
+            </div>
+          </section>
+        )}
         <div className="field">
           <label>あなたの呼び名</label>
           <input
@@ -74,11 +136,15 @@ export function StartGame() {
           />
         </div>
         <button className="button" onClick={begin} disabled={busy}>
-          {busy ? "準備しています…" : "質問に答える →"}
+          {busy
+            ? "準備しています…"
+            : reuseAnswers && profile
+              ? "相手の答えを予想する →"
+              : "自分の質問に答える →"}
         </button>
         {error && <p className="error-message">{error}</p>}
         <p className="notice">
-          回答内容は、招待した相手と結果を確認するために共有されます。
+          自分の回答はこの端末に保存され、次回から再利用できます。回答内容は、招待した相手と結果を確認するために共有されます。
         </p>
       </div>
     </Shell>
@@ -98,9 +164,25 @@ export function PlayGame({ token }: { token: string }) {
         ? "partner"
         : "creator";
     setRole(requestedRole);
+    const restoreProgress = (data: Saved) => {
+      setSaved(data);
+      const ownAnswers =
+        requestedRole === "creator" ? data.answers : data.partnerAnswers || [];
+      const ownPredictions =
+        requestedRole === "creator"
+          ? data.predictions
+          : data.partnerPredictions || [];
+      if (ownAnswers.length === questions.length) {
+        setPhase("predict");
+        const nextPrediction = ownPredictions.findIndex(
+          (value) => value === undefined,
+        );
+        setIdx(nextPrediction >= 0 ? nextPrediction : 0);
+      }
+    };
     const local = localStorage.getItem(key(token));
     if (local) {
-      setSaved(JSON.parse(local));
+      restoreProgress(JSON.parse(local));
       return;
     }
     if (!firebaseEnabled || requestedRole !== "partner") {
@@ -113,16 +195,17 @@ export function PlayGame({ token }: { token: string }) {
       role: "creator" | "partner";
     }>(`/api/sessions/${token}/join`, { method: "POST" })
       .then((data) => {
+        const reusable = loadSelfProfile();
         const initial: Saved = {
           creator: data.creator,
           partner: data.partner,
           answers: [],
           predictions: [],
-          partnerAnswers: [],
+          partnerAnswers: reusable?.answers || [],
           partnerPredictions: [],
         };
         localStorage.setItem(key(token), JSON.stringify(initial));
-        setSaved(initial);
+        restoreProgress(initial);
       })
       .catch((cause) =>
         setError(
@@ -176,9 +259,17 @@ export function PlayGame({ token }: { token: string }) {
     const total = phase === "answer" ? 24 : 8;
     if (idx + 1 < total) setIdx(idx + 1);
     else if (phase === "answer") {
+      saveSelfProfile(
+        role === "creator" ? next.creator : next.partner,
+        role === "creator" ? next.answers : next.partnerAnswers || [],
+      );
       setPhase("predict");
       setIdx(0);
     } else {
+      saveSelfProfile(
+        role === "creator" ? next.creator : next.partner,
+        role === "creator" ? next.answers : next.partnerAnswers || [],
+      );
       if (firebaseEnabled) {
         setSaving(true);
         try {
