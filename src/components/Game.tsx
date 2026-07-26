@@ -147,18 +147,30 @@ export function PlayGame({ token }: { token: string }) {
   const predictionQs = questions.filter((q) => q.prediction);
   const q = phase === "answer" ? questions[idx] : predictionQs[idx];
   const target = role === "creator" ? current.partner : current.creator;
+  const activeField =
+    phase === "answer"
+      ? role === "creator"
+        ? "answers"
+        : "partnerAnswers"
+      : role === "creator"
+        ? "predictions"
+        : "partnerPredictions";
+  const selectedChoice = (current[activeField] as number[] | undefined)?.[idx];
+  function goBack() {
+    setError("");
+    if (idx > 0) {
+      setIdx(idx - 1);
+      return;
+    }
+    if (phase === "predict") {
+      setPhase("answer");
+      setIdx(questions.length - 1);
+    }
+  }
   async function choose(choice: number) {
-    const field =
-      phase === "answer"
-        ? role === "creator"
-          ? "answers"
-          : "partnerAnswers"
-        : role === "creator"
-          ? "predictions"
-          : "partnerPredictions";
-    const arr = [...((current[field] as number[] | undefined) || [])];
+    const arr = [...((current[activeField] as number[] | undefined) || [])];
     arr[idx] = choice;
-    const next = { ...current, [field]: arr };
+    const next = { ...current, [activeField]: arr };
     setSaved(next);
     localStorage.setItem(key(token), JSON.stringify(next));
     const total = phase === "answer" ? 24 : 8;
@@ -214,10 +226,25 @@ export function PlayGame({ token }: { token: string }) {
         {phase === "predict" && <p>{q.question}</p>}
         <div className="options">
           {q.options.map((o, i) => (
-            <button className="option" key={o} onClick={() => choose(i)}>
+            <button
+              className={`option ${selectedChoice === i ? "active" : ""}`}
+              key={o}
+              onClick={() => choose(i)}
+              aria-pressed={selectedChoice === i}
+            >
               {String.fromCharCode(65 + i)}　{o}
             </button>
           ))}
+        </div>
+        <div className="question-navigation">
+          <button
+            className="back-button"
+            onClick={goBack}
+            disabled={phase === "answer" && idx === 0}
+          >
+            ← 前の質問へ
+          </button>
+          <span>回答はあとから変更できます</span>
         </div>
         <p className="notice">
           正解・不正解はありません。いちばん近いものを直感で選んでください。
@@ -237,19 +264,28 @@ export function Invite({ token }: { token: string }) {
     const s = localStorage.getItem(key(token));
     if (s) setSaved(JSON.parse(s));
     if (firebaseEnabled) {
-      const timer = window.setInterval(async () => {
+      const checkStatus = async () => {
         try {
           const data = await apiJson<{ status: string }>(
             `/api/sessions/${token}`,
           );
-          if (data.status === "completed") setCompleted(true);
+          if (data.status === "completed") {
+            setCompleted(true);
+            document.title = "回答が届きました！｜価値観マッチ";
+          }
         } catch {}
-      }, 5000);
-      return () => window.clearInterval(timer);
+      };
+      void checkStatus();
+      const timer = window.setInterval(checkStatus, 5000);
+      return () => {
+        window.clearInterval(timer);
+        document.title = "価値観マッチ｜ふたりで遊ぶ相互理解ゲーム";
+      };
     }
   }, [token]);
   if (!saved) return null;
   const current = saved;
+  const myWorld = worldFor(current.answers);
   const url =
     typeof location === "undefined"
       ? ""
@@ -267,54 +303,97 @@ export function Invite({ token }: { token: string }) {
   }
   return (
     <Shell>
-      <div className="panel">
-        <p className="eyebrow">YOUR INVITATION</p>
-        <h1>
-          {current.partner}さんに
-          <br />
-          招待を送りましょう。
-        </h1>
-        <p>
-          「ちょっと面白そうな価値観ゲーム見つけた。私の答えも予想してみて！」
-        </p>
-        <div className="share-url">{url}</div>
-        <button
-          className="button"
-          onClick={async () => {
-            await navigator.clipboard.writeText(url);
-            setCopied(true);
-          }}
-        >
-          {copied ? "コピーしました ✓" : "招待URLをコピー"}
-        </button>
-        <button
-          className="button secondary"
-          onClick={() =>
-            navigator.share?.({
-              title: "価値観マッチ",
-              text: "私の答えも予想してみて！",
-              url,
-            })
-          }
-        >
-          共有メニューを開く
-        </button>
-        {firebaseEnabled ? (
-          <button
-            className="button secondary"
-            disabled={!completed}
-            onClick={() => router.push(`/result/${token}`)}
-          >
-            {completed ? "結果を見る →" : "相手の回答を待っています…"}
-          </button>
+      <div className={`panel invite-panel ${completed ? "is-completed" : ""}`}>
+        <section className="solo-world">
+          <p className="eyebrow">YOUR WORLD</p>
+          <img src={myWorld.image} alt={`${myWorld.name}の世界観`} />
+          <div>
+            <p>{current.creator}さんの世界観は</p>
+            <h1>{myWorld.name}</h1>
+            <p>{myWorld.desc}</p>
+          </div>
+        </section>
+
+        {completed ? (
+          <section className="arrival-state" aria-live="polite">
+            <div className="arrival-mark">✓</div>
+            <p className="eyebrow">ANSWER RECEIVED</p>
+            <h2>
+              {current.partner}さんから
+              <br />
+              回答が届きました！
+            </h2>
+            <p>ふたりの世界観と、予想の答え合わせを見てみましょう。</p>
+            <button
+              className="button arrival-button"
+              onClick={() => router.push(`/result/${token}`)}
+            >
+              ふたりの結果を見る →
+            </button>
+          </section>
         ) : (
+          <>
+            <section className="waiting-state" aria-live="polite">
+              <div className="waiting-visual">
+                <img src={myWorld.image} alt="" />
+                <div className="waiting-line">
+                  <i />
+                  <i />
+                  <i />
+                </div>
+                <div className="empty-person">?</div>
+              </div>
+              <p className="eyebrow">WAITING FOR ANSWER</p>
+              <h2>
+                {current.partner}さんの
+                <br />
+                回答を待っています
+              </h2>
+              <div className="waiting-dots">
+                <i />
+                <i />
+                <i />
+              </div>
+              <p>
+                この画面は閉じても大丈夫です。戻ってくると自動で確認します。
+              </p>
+            </section>
+
+            <section className="invite-share">
+              <h3>まだ送っていない場合は、招待をシェア</h3>
+              <p>
+                「ちょっと面白そうな価値観ゲーム見つけた。私の答えも予想してみて！」
+              </p>
+              <div className="share-url">{url}</div>
+              <button
+                className="button"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(url);
+                  setCopied(true);
+                }}
+              >
+                {copied ? "コピーしました ✓" : "招待URLをコピー"}
+              </button>
+              <button
+                className="button secondary"
+                onClick={() =>
+                  navigator.share?.({
+                    title: "価値観マッチ",
+                    text: "私の答えも予想してみて！",
+                    url,
+                  })
+                }
+              >
+                共有メニューを開く
+              </button>
+            </section>
+          </>
+        )}
+        {!firebaseEnabled && !completed && (
           <button className="button secondary" onClick={simulate}>
             デモ用：相手の回答を受け取る
           </button>
         )}
-        <p className="notice">
-          相手が回答すると、ふたりの結果を確認できます。この画面は閉じても大丈夫です。
-        </p>
       </div>
     </Shell>
   );
@@ -369,6 +448,67 @@ export function Result({ token }: { token: string }) {
           : "新しい発見が多い";
   const same = questions.filter((_, i) => s.answers[i] === b[i]).slice(0, 4);
   const diff = questions.filter((_, i) => s.answers[i] !== b[i]).slice(0, 4);
+  const categoryScores = [...new Set(questions.map((q) => q.category))]
+    .map((category) => {
+      const indexes = questions
+        .map((q, index) => (q.category === category ? index : -1))
+        .filter((index) => index >= 0);
+      const points = indexes.reduce(
+        (total, index) =>
+          total +
+          (s.answers[index] === b[index]
+            ? 2
+            : Math.abs(s.answers[index] - b[index]) === 1
+              ? 1
+              : 0),
+        0,
+      );
+      return {
+        category,
+        score: Math.round((points / (indexes.length * 2)) * 100),
+      };
+    })
+    .sort((a, b) => b.score - a.score);
+  const predictionQuestions = questions.filter((q) => q.prediction);
+  const surprises = [
+    ...predictionQuestions.flatMap((question, predictionIndex) => {
+      const questionIndex = questions.indexOf(question);
+      return s.predictions[predictionIndex] !== b[questionIndex]
+        ? [
+            `${s.creator}さんは「${question.options[s.predictions[predictionIndex]]}」と予想。${s.partner}さんの本音は「${question.options[b[questionIndex]]}」でした。`,
+          ]
+        : [];
+    }),
+    ...predictionQuestions.flatMap((question, predictionIndex) => {
+      const questionIndex = questions.indexOf(question);
+      return s.partnerPredictions?.[predictionIndex] !==
+        s.answers[questionIndex]
+        ? [
+            `${s.partner}さんは「${question.options[s.partnerPredictions?.[predictionIndex] ?? 0]}」と予想。${s.creator}さんの本音は「${question.options[s.answers[questionIndex]]}」でした。`,
+          ]
+        : [];
+    }),
+  ].slice(0, 3);
+  const relationshipHeadline =
+    score >= 85
+      ? "同じ景色を見ながら、自然体で歩けるふたり"
+      : score >= 70
+        ? "安心できる共通点と、新鮮な違いがあるふたり"
+        : score >= 50
+          ? "話すほど、お互いの世界が広がっていくふたり"
+          : "違う景色を持ち寄って、発見を増やせるふたり";
+  const relationshipSummary =
+    score >= 85
+      ? `大切にしたいことの方向がよく似ています。ただし「分かっているはず」と思わず、ときどき言葉で確かめることが親しさを長く保つ鍵です。`
+      : score >= 70
+        ? `土台になる価値観は近く、細かな選び方にはそれぞれらしさがあります。共通点で安心しながら、違いをデートや休日の新しい選択肢に変えられそうです。`
+        : score >= 50
+          ? `同じ答えよりも、理由を聞くことで魅力が増す組み合わせです。恋愛や親しい関係では、相手の反応を決めつけず「どうしてそう思う？」と聞くことが距離を縮めます。`
+          : `考え方の入口が違うからこそ、自分にはない視点を受け取れます。無理に合わせるより、お互いが心地よい距離や愛情の伝え方を具体的に話すことが大切です。`;
+  const closenessMoment =
+    s.answers[21] === b[21]
+      ? `ふたりは「一緒にいる時間の心地よさ」を似た形で感じやすいようです。親しい関係でも、自然に満たされる瞬間を共有しやすいでしょう。`
+      : `${s.creator}さんは「${questions[21].options[s.answers[21]]}」、${s.partner}さんは「${questions[21].options[b[21]]}」に喜びを感じます。好意が伝わらないときは、気持ちではなく“伝わり方”が違うだけかもしれません。`;
   const understand = (p: number[] | undefined, a: number[]) =>
     Math.round(
       ((p || []).reduce(
@@ -405,11 +545,7 @@ export function Result({ token }: { token: string }) {
               </b>
             </span>
           </div>
-          <h1>
-            落ち着きと好奇心が
-            <br />
-            混ざりあうふたり
-          </h1>
+          <h1>{relationshipHeadline}</h1>
           <p>
             価値観の近さ <strong>{label}</strong>
           </p>
@@ -436,17 +572,42 @@ export function Result({ token }: { token: string }) {
             違いも会話の種に
           </div>
         </div>
+        <section className="relationship-reading">
+          <p className="eyebrow">YOUR RELATIONSHIP</p>
+          <h2>このふたりらしさ</h2>
+          <p>{relationshipSummary}</p>
+          <div className="category-bars">
+            {categoryScores.slice(0, 4).map(({ category, score }) => (
+              <div key={category}>
+                <span>{category}</span>
+                <i>
+                  <b style={{ width: `${score}%` }} />
+                </i>
+                <strong>{score}%</strong>
+              </div>
+            ))}
+          </div>
+          <p className="category-note">
+            とくに近かったのは「{categoryScores[0].category}」。一方、「
+            {categoryScores.at(-1)?.category}
+            」は理由を聞くと新しい発見がありそうです。
+          </p>
+        </section>
         <div className="detail-grid">
           <section className="detail">
-            <h3>似ていたところ</h3>
+            <h3>心が重なったところ</h3>
             <ul>
-              {same.map((q, i) => (
-                <li key={q.id}>{q.options[s.answers[questions.indexOf(q)]]}</li>
+              {same.map((q) => (
+                <li key={q.id}>
+                  <b>{q.question}</b>
+                  <br />
+                  ふたりとも「{q.options[s.answers[questions.indexOf(q)]]}」
+                </li>
               ))}
             </ul>
           </section>
           <section className="detail">
-            <h3>違いから見えること</h3>
+            <h3>ふたりらしい違い</h3>
             <ul>
               {diff.map((q) => {
                 const i = questions.indexOf(q);
@@ -460,20 +621,33 @@ export function Result({ token }: { token: string }) {
             </ul>
           </section>
           <section className="detail">
-            <h3>意外だった回答</h3>
+            <h3>予想と本音のギャップ</h3>
             <ul>
-              <li>予想とは少し違う答えに、新しい一面が見つかりました。</li>
+              {surprises.length ? (
+                surprises.map((text) => <li key={text}>{text}</li>)
+              ) : (
+                <li>
+                  お互いの予想がよく当たっていました。普段から相手をよく見ているふたりです。
+                </li>
+              )}
             </ul>
           </section>
           <section className="detail">
-            <h3>次に話してみよう</h3>
+            <h3>距離をもう少し近づける質問</h3>
             <ul>
               <li>理想の休日を一日自由に作るなら？</li>
-              <li>お金をかけても大切にしたい経験は？</li>
-              <li>疲れたとき、どう過ごしたい？</li>
+              <li>「大切にされている」と感じるのはどんなとき？</li>
+              <li>ふたりで一度やってみたいことは？</li>
             </ul>
           </section>
         </div>
+        <section className="closeness-note">
+          <span>♡</span>
+          <div>
+            <h3>親しい関係で大切にしたいこと</h3>
+            <p>{closenessMoment}</p>
+          </div>
+        </section>
         <button className="button" onClick={download}>
           結果カードをPNGで保存
         </button>
