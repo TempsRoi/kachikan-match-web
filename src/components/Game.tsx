@@ -967,8 +967,8 @@ export function Result({ token }: { token: string }) {
               <span>7日間アクション</span>
             </div>
             <div className="price">
-              <strong>480円</strong>
-              <small>買い切り・ふたりで閲覧</small>
+              <strong>480円（税込）</strong>
+              <small>買い切り・追加料金なし・ふたりで閲覧</small>
             </div>
             <button
               className="button premium-button"
@@ -979,6 +979,12 @@ export function Result({ token }: { token: string }) {
                 ? "決済画面を準備しています…"
                 : "詳細レポートを解放する →"}
             </button>
+            <p className="purchase-terms">
+              決済完了後すぐに提供されます。提供開始後のお客様都合による返金はできません。不具合・重複決済は対応します。カード明細には「KACHIKAN MATCH」等と表示されます。
+              <br />
+              <a href="/commerce">販売条件</a>・<a href="/terms">利用規約</a>
+              に同意のうえ購入してください。
+            </p>
             {error && <p className="error-message">{error}</p>}
           </section>
         )}

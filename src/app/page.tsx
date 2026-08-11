@@ -153,6 +153,8 @@ export default function Home() {
         <div>
           <Link href="/terms">利用規約</Link>
           <Link href="/privacy">プライバシーポリシー</Link>
+          <Link href="/commerce">特定商取引法に基づく表記</Link>
+          <Link href="/contact">お問い合わせ</Link>
         </div>
         <small>© 2026 価値観マッチ</small>
       </footer>

@@ -302,6 +302,8 @@ footer {
 }
 footer div {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 24px;
 }
 .app-shell {
@@ -873,6 +875,18 @@ footer div {
   color: var(--green);
   box-shadow: 0 12px 28px #1d332b55;
 }
+.purchase-terms {
+  max-width: 580px;
+  margin: 16px auto 0 !important;
+  color: #dce8e1 !important;
+  font-size: 10px;
+  line-height: 1.8 !important;
+}
+.purchase-terms a {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .premium-report {
   overflow: hidden;
   border: 1px solid #d7e1da;
@@ -1087,10 +1101,72 @@ footer div {
 .legal {
   max-width: 760px;
   margin: 50px auto;
+  padding: 0 24px 60px;
   line-height: 2;
 }
 .legal h1 {
+  margin-bottom: 4px;
   font-family: var(--font-serif);
+}
+.legal h2 {
+  margin-top: 34px;
+  font: 600 21px var(--font-serif);
+}
+.legal p,
+.legal li,
+.legal dd {
+  color: #56625d;
+  font-size: 14px;
+}
+.legal a {
+  color: var(--green);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.legal-updated {
+  margin-top: 0;
+  color: #87908b !important;
+  font-size: 11px !important;
+}
+.legal-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid #dde3de;
+}
+.commerce-list {
+  margin-top: 32px;
+  border-top: 1px solid #dce2dd;
+}
+.commerce-list > div {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 24px;
+  padding: 20px 0;
+  border-bottom: 1px solid #dce2dd;
+}
+.commerce-list dt {
+  font-weight: 700;
+}
+.commerce-list dd {
+  margin: 0;
+}
+.legal-caution {
+  padding: 16px 18px;
+  border-radius: 10px;
+  background: #eef4ef;
+}
+.contact-mail {
+  display: inline-block;
+  margin: 10px 0 18px;
+  padding: 15px 18px;
+  border-radius: 9px;
+  background: var(--green);
+  color: #fff !important;
+  font-weight: 700;
+  text-decoration: none !important;
 }
 @media (max-width: 800px) {
   .hero {
@@ -1239,6 +1315,11 @@ footer div {
   }
   .premium-lock h2 {
     font-size: 25px;
+  }
+  .commerce-list > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 16px 0;
   }
   .premium-header {
     padding: 26px 18px;
