@@ -12,8 +12,67 @@ const worlds = [
 ];
 
 export default function Home() {
+  const faq = [
+    [
+      "価値観マッチはどんなサービスですか？",
+      "2人が同じ24問に答え、相手の回答も予想する相互理解ゲームです。共通点だけでなく、違いや意外な回答を会話のきっかけとして楽しめます。",
+    ],
+    [
+      "恋人以外とも遊べますか？",
+      "はい。友達、夫婦、家族、付き合う前の相手など、関係を問わず遊べる質問内容です。恋愛だけに限定した診断ではありません。",
+    ],
+    [
+      "会員登録やアプリのインストールは必要ですか？",
+      "必要ありません。スマートフォンやPCのブラウザから、ニックネームだけで始められます。所要時間の目安は約5分です。",
+    ],
+    [
+      "無料でどこまで見られますか？",
+      "2人の世界観、価値観の近さ、相互理解度、主な共通点・違い・意外だった回答を無料で確認できます。",
+    ],
+    [
+      "480円の詳細レポートは定期課金ですか？",
+      "いいえ。結果1件につき480円（税込）の買い切りで、定期課金や追加料金はありません。購入した2人の結果ページで閲覧できます。",
+    ],
+  ];
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        name: "価値観マッチ",
+        url: "https://www.kachikanmatch.jp/",
+        applicationCategory: "EntertainmentApplication",
+        operatingSystem: "Web",
+        inLanguage: "ja",
+        isAccessibleForFree: true,
+        description:
+          "2人で同じ質問に答え、相手の回答を予想して価値観と理解度を見つける相互理解ゲーム。",
+        offers: {
+          "@type": "Offer",
+          name: "詳細レポート",
+          price: "480",
+          priceCurrency: "JPY",
+          availability: "https://schema.org/InStock",
+        },
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: faq.map(([question, answer]) => ({
+          "@type": "Question",
+          name: question,
+          acceptedAnswer: { "@type": "Answer", text: answer },
+        })),
+      },
+    ],
+  };
   return (
     <main>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData).replace(/</g, "\\u003c"),
+        }}
+      />
       <section className="hero">
         <nav className="nav">
           <span className="brand">
@@ -105,10 +164,7 @@ export default function Home() {
           </article>
           <article>
             <b>03</b>
-            <img
-              src="/steps/result.jpg"
-              alt="ふたりで結果画面を見る様子"
-            />
+            <img src="/steps/result.jpg" alt="ふたりで結果画面を見る様子" />
             <h3>ふたりで結果を見る</h3>
             <p>共通点も違いも、発見に変わる。</p>
           </article>
@@ -131,6 +187,45 @@ export default function Home() {
                 <p>{text}</p>
               </div>
             </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="report-preview">
+        <div>
+          <p className="eyebrow">FREE &amp; FULL REPORT</p>
+          <h2>まず無料で発見。もっと話したくなったら、深く。</h2>
+          <p>
+            世界観や価値観の近さ、相互理解度は無料で確認できます。詳細レポートでは、24問すべてから「支え方」「好意の伝わり方」「すれ違いやすい場面」まで読み解きます。
+          </p>
+          <Link className="primary" href="/start">
+            無料ではじめる <span>→</span>
+          </Link>
+        </div>
+        <aside>
+          <span>詳細レポート</span>
+          <strong>
+            480円<small>（税込）</small>
+          </strong>
+          <p>1回限りの買い切り・定期課金なし</p>
+          <ul>
+            <li>関係トリセツ</li>
+            <li>8カテゴリ分析</li>
+            <li>全24問の答え合わせ</li>
+            <li>ふたりの7日間アクション</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section className="faq-section">
+        <p className="eyebrow">FAQ</p>
+        <h2>よくある質問</h2>
+        <div className="faq-list">
+          {faq.map(([question, answer]) => (
+            <details key={question}>
+              <summary>{question}</summary>
+              <p>{answer}</p>
+            </details>
           ))}
         </div>
       </section>
