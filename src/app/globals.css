@@ -792,20 +792,21 @@ footer div {
   font-size: 13px;
   line-height: 1.8;
 }
-.image-save-message {
-  margin: 10px 4px 18px;
-  color: #68736e;
-  font-size: 11px;
-  line-height: 1.6;
-  text-align: center;
-}
-.image-save-message.is-error {
-  color: #a74336;
-}
 .premium-lock,
 .premium-report {
   margin: 28px 0;
   border-radius: 20px;
+}
+.payment-message {
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #e8f3ec;
+  color: #37604f;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.6;
+  text-align: center;
 }
 .premium-lock {
   position: relative;

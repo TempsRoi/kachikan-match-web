@@ -1,7 +1,6 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { toBlob } from "html-to-image";
 import { closeness, questions, worldFor } from "@/lib/questions";
 import { apiJson, firebaseEnabled } from "@/lib/firebase";
 
@@ -41,15 +40,6 @@ function saveSelfProfile(displayName: string, answers: number[]) {
     } satisfies SelfProfile),
   );
 }
-function blobToDataUrl(blob: Blob) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
-}
-
 export function StartGame() {
   const router = useRouter();
   const [creator, setCreator] = useState("");
@@ -501,14 +491,28 @@ export function Invite({ token }: { token: string }) {
 export function Result({ token }: { token: string }) {
   const [s, setS] = useState<Saved | null>(null);
   const [error, setError] = useState("");
-  const [savingImage, setSavingImage] = useState(false);
-  const [imageMessage, setImageMessage] = useState("");
   const [reportUnlocked, setReportUnlocked] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
-  const card = useRef<HTMLDivElement>(null);
+  const [paymentMessage, setPaymentMessage] = useState("");
   useEffect(() => {
     if (firebaseEnabled) {
-      apiJson<Saved>(`/api/sessions/${token}/result`)
+      const loadResult = async () => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("checkout") === "success" && params.get("session_id")) {
+          setPaymentMessage("支払いを確認しています…");
+          await apiJson<{ paid: boolean }>("/api/checkout/confirm", {
+            method: "POST",
+            body: JSON.stringify({ sessionId: params.get("session_id") }),
+          });
+          setPaymentMessage("お支払いが完了しました。詳細レポートを解放しました。");
+          window.history.replaceState({}, "", `/result/${token}`);
+        } else if (params.get("checkout") === "cancelled") {
+          setPaymentMessage("決済はキャンセルされました。料金は発生していません。");
+          window.history.replaceState({}, "", `/result/${token}`);
+        }
+        return apiJson<Saved>(`/api/sessions/${token}/result`);
+      };
+      loadResult()
         .then((data) => {
           localStorage.setItem(key(token), JSON.stringify(data));
           setS(data);
@@ -668,13 +672,10 @@ export function Result({ token }: { token: string }) {
     setCheckoutBusy(true);
     setError("");
     try {
-      const response = await fetch("/api/checkout", {
+      const data = await apiJson<{ url: string }>("/api/checkout", {
         method: "POST",
-        headers: { "content-type": "application/json" },
         body: JSON.stringify({ token }),
       });
-      const data = await response.json();
-      if (!response.ok || !data.url) throw new Error(data.error);
       window.location.href = data.url;
     } catch (cause) {
       setError(
@@ -683,83 +684,15 @@ export function Result({ token }: { token: string }) {
       setCheckoutBusy(false);
     }
   }
-  async function download() {
-    if (!card.current) return;
-    setSavingImage(true);
-    setImageMessage("");
-    const cardElement = card.current;
-    const cardImages = Array.from(cardElement.querySelectorAll("img"));
-    const originalSources = cardImages.map((image) =>
-      image.getAttribute("src"),
-    );
-    try {
-      await Promise.all(
-        cardImages.map(async (image) => {
-          const response = await fetch(image.currentSrc || image.src, {
-            cache: "force-cache",
-          });
-          if (!response.ok) throw new Error("世界観画像を取得できませんでした");
-          image.src = await blobToDataUrl(await response.blob());
-          await image.decode().catch(() => undefined);
-        }),
-      );
-      const blob = await toBlob(cardElement, {
-        pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
-        cacheBust: false,
-        backgroundColor: "#edf5ef",
-      });
-      if (!blob) throw new Error("画像を生成できませんでした");
-      const filename = `価値観マッチ-${result.creator}-${result.partner}.png`;
-      const file = new File([blob], filename, { type: "image/png" });
-      const shareData = {
-        files: [file],
-        title: "価値観マッチ",
-        text: `${result.creator}さんと${result.partner}さんの価値観マッチ`,
-      };
-
-      if (
-        typeof navigator.share === "function" &&
-        navigator.canShare?.(shareData)
-      ) {
-        try {
-          await navigator.share(shareData);
-          setImageMessage(
-            "共有メニューを開きました。「画像を保存」を選んでください。",
-          );
-        } catch (cause) {
-          if (cause instanceof DOMException && cause.name === "AbortError") {
-            setImageMessage("保存をキャンセルしました。");
-          } else {
-            throw cause;
-          }
-        }
-      } else {
-        const objectUrl = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = objectUrl;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
-        setImageMessage("PNG画像をダウンロードしました。");
-      }
-    } catch {
-      setImageMessage(
-        "画像を保存できませんでした。ページを再読み込みして、もう一度お試しください。",
-      );
-    } finally {
-      cardImages.forEach((image, index) => {
-        const source = originalSources[index];
-        if (source) image.setAttribute("src", source);
-      });
-      setSavingImage(false);
-    }
-  }
   return (
     <Shell>
       <div className="panel" style={{ maxWidth: 820 }}>
-        <div className="result-hero" ref={card}>
+        {paymentMessage && (
+          <p className="payment-message" aria-live="polite">
+            {paymentMessage}
+          </p>
+        )}
+        <div className="result-hero">
           <p className="eyebrow">ふたりの世界観</p>
           <div className="result-worlds">
             <span>
@@ -1049,16 +982,6 @@ export function Result({ token }: { token: string }) {
             {error && <p className="error-message">{error}</p>}
           </section>
         )}
-        <button className="button" onClick={download} disabled={savingImage}>
-          {savingImage ? "画像を作成しています…" : "結果カードをPNGで保存"}
-        </button>
-        <p
-          className={`image-save-message ${imageMessage.includes("できません") ? "is-error" : ""}`}
-          aria-live="polite"
-        >
-          {imageMessage ||
-            "iPhoneでは共有メニューが開きます。「画像を保存」を選択してください。"}
-        </p>
         <a className="button secondary" href="/">
           サイトTOPへ戻る
         </a>
