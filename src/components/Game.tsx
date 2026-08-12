@@ -361,7 +361,7 @@ export function Invite({ token }: { token: string }) {
           );
           if (data.status === "completed") {
             setCompleted(true);
-            document.title = "回答が届きました！｜価値観マッチ";
+            document.title = "回答が届きました！｜フタリシル";
           }
         } catch {}
       };
@@ -369,7 +369,7 @@ export function Invite({ token }: { token: string }) {
       const timer = window.setInterval(checkStatus, 5000);
       return () => {
         window.clearInterval(timer);
-        document.title = "価値観マッチ｜ふたりで遊ぶ相互理解ゲーム";
+        document.title = "フタリシル｜ふたりで遊ぶ価値観マッチ";
       };
     }
   }, [token]);
@@ -468,7 +468,7 @@ export function Invite({ token }: { token: string }) {
                 className="button secondary"
                 onClick={() =>
                   navigator.share?.({
-                    title: "価値観マッチ",
+                    title: "フタリシル",
                     text: "私の答えも予想してみて！",
                     url,
                   })
@@ -504,10 +504,14 @@ export function Result({ token }: { token: string }) {
             method: "POST",
             body: JSON.stringify({ sessionId: params.get("session_id") }),
           });
-          setPaymentMessage("お支払いが完了しました。詳細レポートを解放しました。");
+          setPaymentMessage(
+            "お支払いが完了しました。詳細レポートを解放しました。",
+          );
           window.history.replaceState({}, "", `/result/${token}`);
         } else if (params.get("checkout") === "cancelled") {
-          setPaymentMessage("決済はキャンセルされました。料金は発生していません。");
+          setPaymentMessage(
+            "決済はキャンセルされました。料金は発生していません。",
+          );
           window.history.replaceState({}, "", `/result/${token}`);
         }
         return apiJson<Saved>(`/api/sessions/${token}/result`);
@@ -980,7 +984,8 @@ export function Result({ token }: { token: string }) {
                 : "詳細レポートを解放する →"}
             </button>
             <p className="purchase-terms">
-              決済完了後すぐに提供されます。提供開始後のお客様都合による返金はできません。不具合・重複決済は対応します。カード明細には「KACHIKAN MATCH」等と表示されます。
+              決済完了後すぐに提供されます。提供開始後のお客様都合による返金はできません。不具合・重複決済は対応します。カード明細には「KACHIKAN
+              MATCH」等と表示されます。
               <br />
               <a href="/commerce">販売条件</a>・<a href="/terms">利用規約</a>
               に同意のうえ購入してください。
@@ -1003,7 +1008,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <main className="app-shell">
       <nav className="app-nav">
         <a className="brand" href="/">
-          <i>わ</i> 価値観マッチ
+          <i>ふ</i> フタリシル
         </a>
         <span className="question-meta">登録不要 · 約5分</span>
       </nav>

@@ -70,7 +70,7 @@ export async function POST(request: Request) {
               price_data: {
                 currency: "jpy",
                 unit_amount: 480,
-                product_data: { name: "価値観マッチ 詳細レポート" },
+                product_data: { name: "フタリシル 詳細レポート" },
               },
               quantity: 1,
             },

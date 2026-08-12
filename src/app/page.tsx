@@ -14,7 +14,7 @@ const worlds = [
 export default function Home() {
   const faq = [
     [
-      "価値観マッチはどんなサービスですか？",
+      "フタリシルはどんなサービスですか？",
       "2人が同じ24問に答え、相手の回答も予想する相互理解ゲームです。共通点だけでなく、違いや意外な回答を会話のきっかけとして楽しめます。",
     ],
     [
@@ -39,7 +39,8 @@ export default function Home() {
     "@graph": [
       {
         "@type": "WebApplication",
-        name: "価値観マッチ",
+        name: "フタリシル",
+        alternateName: "価値観マッチ",
         url: "https://www.kachikanmatch.jp/",
         applicationCategory: "EntertainmentApplication",
         operatingSystem: "Web",
@@ -76,7 +77,7 @@ export default function Home() {
       <section className="hero">
         <nav className="nav">
           <span className="brand">
-            <i>わ</i> 価値観マッチ
+            <i>ふ</i> フタリシル
           </span>
           <span className="nav-note">登録不要 · 約5分</span>
         </nav>
@@ -243,7 +244,7 @@ export default function Home() {
       </section>
       <footer>
         <span className="brand">
-          <i>わ</i> 価値観マッチ
+          <i>ふ</i> フタリシル
         </span>
         <div>
           <Link href="/terms">利用規約</Link>
@@ -251,7 +252,7 @@ export default function Home() {
           <Link href="/commerce">特定商取引法に基づく表記</Link>
           <Link href="/contact">お問い合わせ</Link>
         </div>
-        <small>© 2026 価値観マッチ</small>
+        <small>© 2026 フタリシル</small>
       </footer>
     </main>
   );
