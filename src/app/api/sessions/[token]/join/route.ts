@@ -41,6 +41,9 @@ export async function POST(
           userId: uid,
           displayName: data.partnerName,
           worldKey: null,
+          styleKey: null,
+          axisScores: null,
+          scoringVersion: data.scoringVersion ?? "v1",
           createdAt: FieldValue.serverTimestamp(),
           completedAt: null,
         });
@@ -52,6 +55,7 @@ export async function POST(
       creator: result.data.creatorName,
       partner: result.data.partnerName,
       status: result.data.status,
+      scoringVersion: result.data.scoringVersion ?? "v1",
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";

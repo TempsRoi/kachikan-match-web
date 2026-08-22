@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb, authenticatedUid } from "@/lib/firebase-admin";
-import { questions } from "@/lib/questions";
+import { questionSetFor } from "@/lib/questions";
 
 export async function GET(
   request: Request,
@@ -36,6 +36,8 @@ export async function GET(
       { error: "相手の回答を待っています" },
       { status: 409 },
     );
+  const scoringVersion = session.scoringVersion ?? "v1";
+  const questions = questionSetFor(scoringVersion);
   const [answerSnap, predictionSnap] = await Promise.all([
     ref.collection("answers").get(),
     ref.collection("predictions").get(),
@@ -53,6 +55,7 @@ export async function GET(
   return NextResponse.json({
     creator: session.creatorName,
     partner: session.partnerName,
+    scoringVersion,
     paid: session.paid === true,
     answers: questions.map((q) => answerMap.get(`creator_${q.id}`)),
     partnerAnswers: questions.map((q) => answerMap.get(`partner_${q.id}`)),

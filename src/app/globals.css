@@ -623,6 +623,24 @@ footer div {
   line-height: 1.8;
   color: #66736d;
 }
+.solo-traits,
+.trait-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.solo-traits {
+  margin-top: 12px;
+}
+.solo-traits span,
+.trait-tags span {
+  padding: 6px 9px;
+  border-radius: 99px;
+  background: #edf4ef;
+  color: var(--green);
+  font-size: 10px;
+  font-weight: 700;
+}
 .waiting-state,
 .arrival-state {
   margin-top: 28px;
@@ -813,6 +831,131 @@ footer div {
   display: block;
   font-size: 28px;
   color: var(--green);
+}
+.personality-comparison {
+  margin-top: 18px;
+  padding: 30px;
+  border: 1px solid #d8e3db;
+  border-radius: 18px;
+  background: linear-gradient(150deg, #f3f7f3, #fffaf2);
+}
+.personality-comparison > h2 {
+  margin: 7px 0 22px;
+  font: 600 28px var(--font-serif);
+}
+.personality-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 13px;
+}
+.personality-cards > article {
+  padding: 20px;
+  border: 1px solid #e0e6e1;
+  border-radius: 14px;
+  background: #fff;
+}
+.personality-card-head {
+  display: flex;
+  gap: 13px;
+  align-items: center;
+}
+.personality-card-head img {
+  width: 58px;
+  height: 58px;
+  flex: none;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 7px 18px #30483b20;
+}
+.personality-card-head small {
+  color: #7a857f;
+}
+.personality-card-head h3 {
+  margin: 3px 0 0;
+  color: var(--green);
+  font: 600 18px/1.45 var(--font-serif);
+}
+.personality-cards > article > p {
+  color: #65716b;
+  font-size: 12px;
+  line-height: 1.75;
+}
+.trait-tags {
+  margin: 15px 0;
+}
+.personality-evidence {
+  margin: 15px 0 0;
+  padding-top: 13px;
+  border-top: 1px solid #edf0ed;
+}
+.axis-comparison-list {
+  display: grid;
+  gap: 20px;
+  margin-top: 28px;
+}
+.axis-comparison header,
+.axis-poles {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.axis-comparison header {
+  align-items: baseline;
+  margin-bottom: 7px;
+  font-size: 12px;
+}
+.axis-comparison header b {
+  font-size: 14px;
+}
+.axis-comparison header span,
+.axis-poles small {
+  color: #79837e;
+}
+.axis-poles {
+  margin-bottom: 5px;
+}
+.axis-track {
+  position: relative;
+  height: 10px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #d7e1dc, #f2eee5 50%, #ead1bd);
+}
+.axis-track::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: 50%;
+  width: 1px;
+  background: #fff;
+}
+.axis-track i {
+  position: absolute;
+  z-index: 1;
+  width: 13px;
+  height: 13px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  transform: translateX(-50%);
+  box-shadow: 0 2px 5px #34483c33;
+}
+.axis-track .creator-dot {
+  top: -5px;
+  background: var(--green);
+}
+.axis-track .partner-dot {
+  bottom: -5px;
+  background: var(--orange);
+}
+.axis-summary {
+  margin: 26px 0 0;
+  padding: 16px 18px;
+  border-left: 3px solid var(--orange);
+  background: #fff;
+  color: #5d6863;
+  font-size: 13px;
+  line-height: 1.8;
 }
 .relationship-reading {
   margin-top: 18px;
@@ -1309,6 +1452,9 @@ footer div {
   .detail-grid {
     grid-template-columns: 1fr;
   }
+  .personality-cards {
+    grid-template-columns: 1fr;
+  }
   .solo-world {
     grid-template-columns: 1fr;
     text-align: center;
@@ -1396,8 +1542,17 @@ footer div {
   .stat,
   .detail,
   .relationship-reading,
-  .closeness-note {
+  .closeness-note,
+  .personality-comparison {
     padding: 18px;
+  }
+  .personality-comparison > h2 {
+    font-size: 23px;
+  }
+  .axis-comparison header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
   }
   .closeness-note {
     gap: 12px;

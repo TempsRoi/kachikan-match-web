@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:personality": "node --experimental-strip-types scripts/validate-personality.mjs"
   },
   "dependencies": {
     "firebase": "^12.16.0",

@@ -1,14 +1,10 @@
 import Link from "next/link";
 
-const worlds = [
-  ["cafe", "カフェ", "会話と心地よさ"],
-  ["traveler", "旅人", "好奇心と新しい経験"],
-  ["forest", "森", "安心と穏やかさ"],
-  ["lighthouse", "灯台", "目的と支える力"],
-  ["fire", "焚き火", "共感とつながり"],
-  ["library", "図書館", "知識と深い対話"],
-  ["sea", "海", "自由と自然体"],
-  ["garden", "庭園", "丁寧さとバランス"],
+const personalityAxes = [
+  ["cafe", "つながり方", "自分のペース ↔ 一緒に共有"],
+  ["lighthouse", "進め方", "流れに合わせる ↔ 計画して安心"],
+  ["library", "決め方", "理由と納得 ↔ 気持ちと共感"],
+  ["traveler", "求めるもの", "安心と継続 ↔ 変化と経験"],
 ];
 
 export default function Home() {
@@ -27,7 +23,7 @@ export default function Home() {
     ],
     [
       "無料でどこまで見られますか？",
-      "2人の世界観、価値観の近さ、相互理解度、主な共通点・違い・意外だった回答を無料で確認できます。",
+      "2人の関係スタイル、4つの性格軸、価値観の近さ、相互理解度、主な共通点・違い・意外だった回答を無料で確認できます。",
     ],
     [
       "480円の詳細レポートは定期課金ですか？",
@@ -103,14 +99,14 @@ export default function Home() {
           </p>
         </div>
         <div className="phone-card">
-          <div className="mini-label">ふたりの世界観</div>
+          <div className="mini-label">ふたりの関係スタイル</div>
           <div className="world-pair">
             <span>
               <img src="/worlds/cafe.jpg" alt="カフェの世界観" />
               <b>
                 あおい
                 <br />
-                <small>カフェ</small>
+                <small>寄り添い上手</small>
               </b>
             </span>
             <i>×</i>
@@ -119,7 +115,7 @@ export default function Home() {
               <b>
                 はる
                 <br />
-                <small>旅人</small>
+                <small>準備する探究者</small>
               </b>
             </span>
           </div>
@@ -173,16 +169,15 @@ export default function Home() {
       </section>
 
       <section className="worlds">
-        <p className="eyebrow">8 WORLDS</p>
-        <h2>あなたの答えから見える、8つの世界観</h2>
-        <p>人を枠にはめるものではなく、大切にしている景色を表す言葉です。</p>
+        <p className="eyebrow">4 PERSONALITY AXES</p>
+        <h2>あなたらしい関わり方を、4つの軸で。</h2>
+        <p>
+          24の回答から、距離感・予定・判断・変化への向き合い方を読み解きます。
+        </p>
         <div className="world-grid">
-          {worlds.map(([key, name, text]) => (
+          {personalityAxes.map(([key, name, text]) => (
             <article key={name}>
-              <img
-                src={`/worlds/${key}.jpg`}
-                alt={`${name}の世界観を表すイラスト`}
-              />
+              <img src={`/worlds/${key}.jpg`} alt={`${name}を表すイラスト`} />
               <div>
                 <h3>{name}</h3>
                 <p>{text}</p>
@@ -197,7 +192,7 @@ export default function Home() {
           <p className="eyebrow">FREE &amp; FULL REPORT</p>
           <h2>まず無料で発見。もっと話したくなったら、深く。</h2>
           <p>
-            世界観や価値観の近さ、相互理解度は無料で確認できます。詳細レポートでは、24問すべてから「支え方」「好意の伝わり方」「すれ違いやすい場面」まで読み解きます。
+            関係スタイルや4つの性格軸、価値観の近さ、相互理解度は無料で確認できます。詳細レポートでは、24問すべてから「支え方」「好意の伝わり方」「すれ違いやすい場面」まで読み解きます。
           </p>
           <Link className="primary" href="/start">
             無料ではじめる <span>→</span>

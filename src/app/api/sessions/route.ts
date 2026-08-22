@@ -3,6 +3,7 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { adminDb, authenticatedUid } from "@/lib/firebase-admin";
+import { SCORING_VERSION } from "@/lib/questions";
 
 const schema = z.object({
   creatorName: z.string().trim().min(1).max(20),
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
       creatorUserId: uid,
       partnerUserId: null,
       status: "creator_answering",
+      scoringVersion: SCORING_VERSION,
       paid: false,
       createdAt: now,
       updatedAt: now,
@@ -43,6 +45,9 @@ export async function POST(request: Request) {
       userId: uid,
       displayName: input.creatorName,
       worldKey: null,
+      styleKey: null,
+      axisScores: null,
+      scoringVersion: SCORING_VERSION,
       createdAt: now,
       completedAt: null,
     });

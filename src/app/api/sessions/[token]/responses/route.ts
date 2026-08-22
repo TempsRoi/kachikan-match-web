@@ -2,7 +2,12 @@ import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { adminDb, authenticatedUid } from "@/lib/firebase-admin";
-import { questions, worldFor } from "@/lib/questions";
+import {
+  personalityFor,
+  questionSetFor,
+  SCORING_VERSION,
+  worldFor,
+} from "@/lib/questions";
 
 const schema = z.object({
   role: z.enum(["creator", "partner"]),
@@ -36,10 +41,12 @@ export async function POST(
       input.role === "creator" ? data?.creatorUserId : data?.partnerUserId;
     if (!data || ownerId !== uid || data.status === "completed")
       return NextResponse.json({ error: "保存できません" }, { status: 403 });
+    const scoringVersion = data.scoringVersion ?? "v1";
+    const activeQuestions = questionSetFor(scoringVersion);
     const batch = db.batch();
     const now = FieldValue.serverTimestamp();
     input.answers.forEach((value, index) => {
-      const questionId = questions[index].id;
+      const questionId = activeQuestions[index].id;
       batch.set(ref.collection("answers").doc(`${input.role}_${questionId}`), {
         participantRole: input.role,
         questionId,
@@ -48,7 +55,7 @@ export async function POST(
         updatedAt: now,
       });
     });
-    questions
+    activeQuestions
       .filter((q) => q.prediction)
       .forEach((question, index) => {
         batch.set(
@@ -63,8 +70,17 @@ export async function POST(
           },
         );
       });
+    const participantResult =
+      scoringVersion === SCORING_VERSION ? personalityFor(input.answers) : null;
     batch.update(ref.collection("participants").doc(input.role), {
-      worldKey: worldFor(input.answers).key,
+      worldKey: participantResult?.world.key ?? worldFor(input.answers).key,
+      styleKey: participantResult?.style.key ?? null,
+      axisScores: participantResult
+        ? Object.fromEntries(
+            participantResult.axes.map((axis) => [axis.key, axis.raw]),
+          )
+        : null,
+      scoringVersion,
       completedAt: now,
     });
     batch.update(

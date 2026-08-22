@@ -1,7 +1,17 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { closeness, questions, worldFor } from "@/lib/questions";
+import {
+  axes,
+  closeness,
+  optionLabel,
+  personalityFor,
+  questions,
+  questionSetFor,
+  SCORING_VERSION,
+  worldFor,
+} from "@/lib/questions";
 import { apiJson, firebaseEnabled } from "@/lib/firebase";
 
 type Saved = {
@@ -12,19 +22,26 @@ type Saved = {
   partnerAnswers?: number[];
   partnerPredictions?: number[];
   paid?: boolean;
+  scoringVersion?: string;
 };
 type SelfProfile = {
   displayName: string;
   answers: number[];
   savedAt: string;
+  scoringVersion: typeof SCORING_VERSION;
 };
 const key = (token: string) => `km:${token}`;
 const selfKey = "km:self-profile";
-const randomAnswers = () => questions.map((_, i) => (i * 7 + 2) % 4);
+const randomAnswers = (count = questions.length) =>
+  Array.from({ length: count }, (_, i) => (i * 7 + 2) % 4);
+const savedVersion = (value: Saved) => value.scoringVersion ?? "v1";
 function loadSelfProfile(): SelfProfile | null {
   try {
     const value = JSON.parse(localStorage.getItem(selfKey) || "null");
-    return value?.answers?.length === questions.length ? value : null;
+    return value?.scoringVersion === SCORING_VERSION &&
+      value?.answers?.length === questions.length
+      ? value
+      : null;
   } catch {
     return null;
   }
@@ -37,6 +54,7 @@ function saveSelfProfile(displayName: string, answers: number[]) {
       displayName,
       answers,
       savedAt: new Date().toISOString(),
+      scoringVersion: SCORING_VERSION,
     } satisfies SelfProfile),
   );
 }
@@ -48,9 +66,12 @@ export function StartGame() {
   const [busy, setBusy] = useState(false);
   const [profile, setProfile] = useState<SelfProfile | null>(null);
   const [reuseAnswers, setReuseAnswers] = useState(true);
+  const savedPersonality = profile ? personalityFor(profile.answers) : null;
   useEffect(() => {
     const stored = loadSelfProfile();
     if (stored) {
+      // localStorage is only available after the client has mounted.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setProfile(stored);
       setCreator(stored.displayName);
     }
@@ -75,6 +96,7 @@ export function StartGame() {
           partner,
           answers: reuseAnswers && profile ? profile.answers : [],
           predictions: [],
+          scoringVersion: SCORING_VERSION,
         }),
       );
       router.push(`/play/${token}?role=creator`);
@@ -93,16 +115,16 @@ export function StartGame() {
           教えてください。
         </h1>
         <p>ニックネームで大丈夫。本名やメールアドレスは必要ありません。</p>
-        {profile && (
+        {profile && savedPersonality && (
           <section className="saved-profile">
             <img
-              src={worldFor(profile.answers).image}
-              alt={`${worldFor(profile.answers).name}の世界観`}
+              src={savedPersonality.world.image}
+              alt={`${savedPersonality.style.name}のイメージ`}
             />
             <div>
               <p className="eyebrow">SAVED ANSWERS</p>
               <h2>
-                {profile.displayName}さん · {worldFor(profile.answers).name}
+                {profile.displayName}さん · {savedPersonality.style.name}
               </h2>
               <p>前回の自分の回答24問が保存されています。</p>
               <label className="reuse-toggle">
@@ -162,16 +184,19 @@ export function PlayGame({ token }: { token: string }) {
       new URLSearchParams(location.search).get("role") === "partner"
         ? "partner"
         : "creator";
+    // Restore the URL-selected role and local draft after hydration.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRole(requestedRole);
     const restoreProgress = (data: Saved) => {
       setSaved(data);
+      const activeQuestions = questionSetFor(savedVersion(data));
       const ownAnswers =
         requestedRole === "creator" ? data.answers : data.partnerAnswers || [];
       const ownPredictions =
         requestedRole === "creator"
           ? data.predictions
           : data.partnerPredictions || [];
-      if (ownAnswers.length === questions.length) {
+      if (ownAnswers.length === activeQuestions.length) {
         setPhase("predict");
         const nextPrediction = ownPredictions.findIndex(
           (value) => value === undefined,
@@ -192,9 +217,11 @@ export function PlayGame({ token }: { token: string }) {
       creator: string;
       partner: string;
       role: "creator" | "partner";
+      scoringVersion: string;
     }>(`/api/sessions/${token}/join`, { method: "POST" })
       .then((data) => {
-        const reusable = loadSelfProfile();
+        const reusable =
+          data.scoringVersion === SCORING_VERSION ? loadSelfProfile() : null;
         const initial: Saved = {
           creator: data.creator,
           partner: data.partner,
@@ -202,6 +229,7 @@ export function PlayGame({ token }: { token: string }) {
           predictions: [],
           partnerAnswers: reusable?.answers || [],
           partnerPredictions: [],
+          scoringVersion: data.scoringVersion,
         };
         localStorage.setItem(key(token), JSON.stringify(initial));
         restoreProgress(initial);
@@ -218,16 +246,17 @@ export function PlayGame({ token }: { token: string }) {
         <div className="panel">
           <h1>{error || "招待を確認しています…"}</h1>
           {error && (
-            <a className="button secondary" href="/">
+            <Link className="button secondary" href="/">
               TOPへ戻る
-            </a>
+            </Link>
           )}
         </div>
       </Shell>
     );
   const current = saved;
-  const predictionQs = questions.filter((q) => q.prediction);
-  const q = phase === "answer" ? questions[idx] : predictionQs[idx];
+  const activeQuestions = questionSetFor(savedVersion(current));
+  const predictionQs = activeQuestions.filter((q) => q.prediction);
+  const q = phase === "answer" ? activeQuestions[idx] : predictionQs[idx];
   const target = role === "creator" ? current.partner : current.creator;
   const activeField =
     phase === "answer"
@@ -246,7 +275,7 @@ export function PlayGame({ token }: { token: string }) {
     }
     if (phase === "predict") {
       setPhase("answer");
-      setIdx(questions.length - 1);
+      setIdx(activeQuestions.length - 1);
     }
   }
   async function choose(choice: number) {
@@ -255,20 +284,25 @@ export function PlayGame({ token }: { token: string }) {
     const next = { ...current, [activeField]: arr };
     setSaved(next);
     localStorage.setItem(key(token), JSON.stringify(next));
-    const total = phase === "answer" ? 24 : 8;
+    const total =
+      phase === "answer" ? activeQuestions.length : predictionQs.length;
     if (idx + 1 < total) setIdx(idx + 1);
     else if (phase === "answer") {
-      saveSelfProfile(
-        role === "creator" ? next.creator : next.partner,
-        role === "creator" ? next.answers : next.partnerAnswers || [],
-      );
+      if (savedVersion(next) === SCORING_VERSION) {
+        saveSelfProfile(
+          role === "creator" ? next.creator : next.partner,
+          role === "creator" ? next.answers : next.partnerAnswers || [],
+        );
+      }
       setPhase("predict");
       setIdx(0);
     } else {
-      saveSelfProfile(
-        role === "creator" ? next.creator : next.partner,
-        role === "creator" ? next.answers : next.partnerAnswers || [],
-      );
+      if (savedVersion(next) === SCORING_VERSION) {
+        saveSelfProfile(
+          role === "creator" ? next.creator : next.partner,
+          role === "creator" ? next.answers : next.partnerAnswers || [],
+        );
+      }
       if (firebaseEnabled) {
         setSaving(true);
         try {
@@ -295,7 +329,8 @@ export function PlayGame({ token }: { token: string }) {
       router.push(role === "creator" ? `/invite/${token}` : `/result/${token}`);
     }
   }
-  const total = phase === "answer" ? 24 : 8;
+  const total =
+    phase === "answer" ? activeQuestions.length : predictionQs.length;
   return (
     <Shell>
       <div className="panel">
@@ -315,14 +350,14 @@ export function PlayGame({ token }: { token: string }) {
         </h1>
         {phase === "predict" && <p>{q.question}</p>}
         <div className="options">
-          {q.options.map((o, i) => (
+          {q.options.map((option, i) => (
             <button
               className={`option ${selectedChoice === i ? "active" : ""}`}
-              key={o}
+              key={option.label}
               onClick={() => choose(i)}
               aria-pressed={selectedChoice === i}
             >
-              {String.fromCharCode(65 + i)}　{o}
+              {String.fromCharCode(65 + i)}　{option.label}
             </button>
           ))}
         </div>
@@ -352,7 +387,11 @@ export function Invite({ token }: { token: string }) {
   const [completed, setCompleted] = useState(false);
   useEffect(() => {
     const s = localStorage.getItem(key(token));
-    if (s) setSaved(JSON.parse(s));
+    if (s) {
+      // Restore the local invitation state after hydration.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSaved(JSON.parse(s));
+    }
     if (firebaseEnabled) {
       const checkStatus = async () => {
         try {
@@ -375,7 +414,9 @@ export function Invite({ token }: { token: string }) {
   }, [token]);
   if (!saved) return null;
   const current = saved;
-  const myWorld = worldFor(current.answers);
+  const isV2 = savedVersion(current) === SCORING_VERSION;
+  const myPersonality = isV2 ? personalityFor(current.answers) : null;
+  const myWorld = myPersonality?.world ?? worldFor(current.answers);
   const url =
     typeof location === "undefined"
       ? ""
@@ -383,7 +424,9 @@ export function Invite({ token }: { token: string }) {
   function simulate() {
     const next = {
       ...current,
-      partnerAnswers: randomAnswers(),
+      partnerAnswers: randomAnswers(
+        questionSetFor(savedVersion(current)).length,
+      ),
       partnerPredictions: current.answers
         .map((v, i) => (i % 3 ? v : (v + 1) % 4))
         .slice(0, 8),
@@ -395,12 +438,27 @@ export function Invite({ token }: { token: string }) {
     <Shell>
       <div className={`panel invite-panel ${completed ? "is-completed" : ""}`}>
         <section className="solo-world">
-          <p className="eyebrow">YOUR WORLD</p>
-          <img src={myWorld.image} alt={`${myWorld.name}の世界観`} />
+          <p className="eyebrow">
+            {myPersonality ? "YOUR RELATIONSHIP STYLE" : "YOUR WORLD"}
+          </p>
+          <img
+            src={myWorld.image}
+            alt={`${myPersonality?.style.name ?? myWorld.name}のイメージ`}
+          />
           <div>
-            <p>{current.creator}さんの世界観は</p>
-            <h1>{myWorld.name}</h1>
-            <p>{myWorld.desc}</p>
+            <p>
+              {current.creator}さんの
+              {myPersonality ? "関係スタイルは" : "世界観は"}
+            </p>
+            <h1>{myPersonality?.style.name ?? myWorld.name}</h1>
+            <p>{myPersonality?.style.tagline ?? myWorld.desc}</p>
+            {myPersonality && (
+              <div className="solo-traits">
+                {myPersonality.axes.map((axis) => (
+                  <span key={axis.key}>{axis.shortLabel}</span>
+                ))}
+              </div>
+            )}
           </div>
         </section>
 
@@ -413,7 +471,7 @@ export function Invite({ token }: { token: string }) {
               <br />
               回答が届きました！
             </h2>
-            <p>ふたりの世界観と、予想の答え合わせを見てみましょう。</p>
+            <p>ふたりの関係スタイルと、予想の答え合わせを見てみましょう。</p>
             <button
               className="button arrival-button"
               onClick={() => router.push(`/result/${token}`)}
@@ -537,6 +595,8 @@ export function Result({ token }: { token: string }) {
     } else {
       const raw = localStorage.getItem(key(token));
       if (raw) {
+        // Restore the local demo result after hydration.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setS(JSON.parse(raw));
         setReportUnlocked(
           new URLSearchParams(window.location.search).get("paid") === "1",
@@ -550,18 +610,25 @@ export function Result({ token }: { token: string }) {
         <div className="panel">
           <h1>{error || "結果を読み込んでいます…"}</h1>
           {error && (
-            <a className="button secondary" href={`/invite/${token}`}>
+            <Link className="button secondary" href={`/invite/${token}`}>
               招待画面へ戻る
-            </a>
+            </Link>
           )}
         </div>
       </Shell>
     );
   const result = s;
-  const b = result.partnerAnswers || randomAnswers();
-  const score = closeness(s.answers, b);
-  const wa = worldFor(s.answers),
-    wb = worldFor(b);
+  const scoringVersion = savedVersion(result);
+  const resultQuestions = questionSetFor(scoringVersion);
+  const isV2 = scoringVersion === SCORING_VERSION;
+  const b = result.partnerAnswers || randomAnswers(resultQuestions.length);
+  const score = closeness(s.answers, b, resultQuestions.length);
+  const creatorPersonality = isV2 ? personalityFor(s.answers) : null;
+  const partnerPersonality = isV2 ? personalityFor(b) : null;
+  const wa = creatorPersonality?.world ?? worldFor(s.answers),
+    wb = partnerPersonality?.world ?? worldFor(b);
+  const creatorIdentity = creatorPersonality?.style.name ?? wa.name;
+  const partnerIdentity = partnerPersonality?.style.name ?? wb.name;
   const label =
     score >= 85
       ? "とても近い"
@@ -570,11 +637,15 @@ export function Result({ token }: { token: string }) {
         : score >= 50
           ? "違いが刺激になる"
           : "新しい発見が多い";
-  const same = questions.filter((_, i) => s.answers[i] === b[i]).slice(0, 4);
-  const diff = questions.filter((_, i) => s.answers[i] !== b[i]).slice(0, 4);
-  const categoryScores = [...new Set(questions.map((q) => q.category))]
+  const same = resultQuestions
+    .filter((_, i) => s.answers[i] === b[i])
+    .slice(0, 4);
+  const diff = resultQuestions
+    .filter((_, i) => s.answers[i] !== b[i])
+    .slice(0, 4);
+  const categoryScores = [...new Set(resultQuestions.map((q) => q.category))]
     .map((category) => {
-      const indexes = questions
+      const indexes = resultQuestions
         .map((q, index) => (q.category === category ? index : -1))
         .filter((index) => index >= 0);
       const points = indexes.reduce(
@@ -593,22 +664,22 @@ export function Result({ token }: { token: string }) {
       };
     })
     .sort((a, b) => b.score - a.score);
-  const predictionQuestions = questions.filter((q) => q.prediction);
+  const predictionQuestions = resultQuestions.filter((q) => q.prediction);
   const surprises = [
     ...predictionQuestions.flatMap((question, predictionIndex) => {
-      const questionIndex = questions.indexOf(question);
+      const questionIndex = resultQuestions.indexOf(question);
       return s.predictions[predictionIndex] !== b[questionIndex]
         ? [
-            `${s.creator}さんは「${question.options[s.predictions[predictionIndex]]}」と予想。${s.partner}さんの本音は「${question.options[b[questionIndex]]}」でした。`,
+            `${s.creator}さんは「${optionLabel(question, s.predictions[predictionIndex])}」と予想。${s.partner}さんの本音は「${optionLabel(question, b[questionIndex])}」でした。`,
           ]
         : [];
     }),
     ...predictionQuestions.flatMap((question, predictionIndex) => {
-      const questionIndex = questions.indexOf(question);
+      const questionIndex = resultQuestions.indexOf(question);
       return s.partnerPredictions?.[predictionIndex] !==
         s.answers[questionIndex]
         ? [
-            `${s.partner}さんは「${question.options[s.partnerPredictions?.[predictionIndex] ?? 0]}」と予想。${s.creator}さんの本音は「${question.options[s.answers[questionIndex]]}」でした。`,
+            `${s.partner}さんは「${optionLabel(question, s.partnerPredictions?.[predictionIndex] ?? 0)}」と予想。${s.creator}さんの本音は「${optionLabel(question, s.answers[questionIndex])}」でした。`,
           ]
         : [];
     }),
@@ -629,10 +700,30 @@ export function Result({ token }: { token: string }) {
         : score >= 50
           ? `同じ答えよりも、理由を聞くことで魅力が増す組み合わせです。恋愛や親しい関係では、相手の反応を決めつけず「どうしてそう思う？」と聞くことが距離を縮めます。`
           : `考え方の入口が違うからこそ、自分にはない視点を受け取れます。無理に合わせるより、お互いが心地よい距離や愛情の伝え方を具体的に話すことが大切です。`;
+  const axisComparisons =
+    creatorPersonality && partnerPersonality
+      ? creatorPersonality.axes
+          .map((creatorAxis) => ({
+            creator: creatorAxis,
+            partner:
+              partnerPersonality.axes.find(
+                (partnerAxis) => partnerAxis.key === creatorAxis.key,
+              ) ?? partnerPersonality.axes[0],
+            distance: Math.abs(
+              creatorAxis.position -
+                (partnerPersonality.axes.find(
+                  (partnerAxis) => partnerAxis.key === creatorAxis.key,
+                )?.position ?? 0),
+            ),
+          }))
+          .sort((a, b) => a.distance - b.distance)
+      : [];
+  const closestAxis = axisComparisons[0];
+  const contrastAxis = axisComparisons.at(-1);
   const closenessMoment =
     s.answers[21] === b[21]
       ? `ふたりは「一緒にいる時間の心地よさ」を似た形で感じやすいようです。親しい関係でも、自然に満たされる瞬間を共有しやすいでしょう。`
-      : `${s.creator}さんは「${questions[21].options[s.answers[21]]}」、${s.partner}さんは「${questions[21].options[b[21]]}」に喜びを感じます。好意が伝わらないときは、気持ちではなく“伝わり方”が違うだけかもしれません。`;
+      : `${s.creator}さんは「${optionLabel(resultQuestions[21], s.answers[21])}」、${s.partner}さんは「${optionLabel(resultQuestions[21], b[21])}」に喜びを感じます。好意が伝わらないときは、気持ちではなく“伝わり方”が違うだけかもしれません。`;
   const understand = (p: number[] | undefined, a: number[]) =>
     Math.round(
       ((p || []).reduce(
@@ -651,21 +742,21 @@ export function Result({ token }: { token: string }) {
       text:
         s.answers[1] === b[1]
           ? `返信の心地よいペースが近いふたりです。連絡頻度より、今の自然なリズムを大切にすると安心が続きます。`
-          : `${s.creator}さんは「${questions[1].options[s.answers[1]]}」、${s.partner}さんは「${questions[1].options[b[1]]}」。返信速度を好意の大きさと結びつけず、忙しい日の目安を共有すると安心です。`,
+          : `${s.creator}さんは「${optionLabel(resultQuestions[1], s.answers[1])}」、${s.partner}さんは「${optionLabel(resultQuestions[1], b[1])}」。返信速度を好意の大きさと結びつけず、忙しい日の目安を共有すると安心です。`,
     },
     {
       title: "疲れたときの支え方",
       text:
         s.answers[9] === b[9]
           ? `疲れた日の回復方法が似ています。相手がしんどそうなときも、自分が嬉しい支え方を提案しやすいふたりです。`
-          : `${s.creator}さんは「${questions[9].options[s.answers[9]]}」、${s.partner}さんは「${questions[9].options[b[9]]}」で回復します。「話す？そっとしておく？」と一言確認するのが最良の気遣いです。`,
+          : `${s.creator}さんは「${optionLabel(resultQuestions[9], s.answers[9])}」、${s.partner}さんは「${optionLabel(resultQuestions[9], b[9])}」で回復します。「話す？そっとしておく？」と一言確認するのが最良の気遣いです。`,
     },
     {
       title: "予定と将来",
       text:
         s.answers[20] === b[20]
           ? `将来を考える解像度が近く、ふたりの予定を相談しやすい傾向です。小さな楽しみを一緒に決めると関係が育ちます。`
-          : `${s.creator}さんは「${questions[20].options[s.answers[20]]}」、${s.partner}さんは「${questions[20].options[b[20]]}」。計画する範囲と自由に残す範囲を分けると、どちらも窮屈になりません。`,
+          : `${s.creator}さんは「${optionLabel(resultQuestions[20], s.answers[20])}」、${s.partner}さんは「${optionLabel(resultQuestions[20], b[20])}」。計画する範囲と自由に残す範囲を分けると、どちらも窮屈になりません。`,
     },
     {
       title: "好意の伝わり方",
@@ -697,18 +788,20 @@ export function Result({ token }: { token: string }) {
           </p>
         )}
         <div className="result-hero">
-          <p className="eyebrow">ふたりの世界観</p>
+          <p className="eyebrow">
+            {isV2 ? "ふたりの関係スタイル" : "ふたりの世界観"}
+          </p>
           <div className="result-worlds">
             <span>
-              <img src={wa.image} alt={`${wa.name}の世界観`} />
+              <img src={wa.image} alt={`${creatorIdentity}のイメージ`} />
               <b>
-                {s.creator} · {wa.name}
+                {s.creator} · {creatorIdentity}
               </b>
             </span>
             <span>
-              <img src={wb.image} alt={`${wb.name}の世界観`} />
+              <img src={wb.image} alt={`${partnerIdentity}のイメージ`} />
               <b>
-                {s.partner} · {wb.name}
+                {s.partner} · {partnerIdentity}
               </b>
             </span>
           </div>
@@ -732,13 +825,97 @@ export function Result({ token }: { token: string }) {
             {s.partner} → {s.creator}
           </div>
           <div className="stat">
-            世界観
+            {isV2 ? "関係スタイル" : "世界観"}
             <strong>
-              {wa.name} × {wb.name}
+              {creatorIdentity} × {partnerIdentity}
             </strong>
             違いも会話の種に
           </div>
         </div>
+        {creatorPersonality && partnerPersonality && (
+          <section className="personality-comparison">
+            <p className="eyebrow">PERSONALITY AXES</p>
+            <h2>ふたりの「関わり方」を4つの軸で見る</h2>
+            <div className="personality-cards">
+              {[
+                { id: "creator", name: s.creator, profile: creatorPersonality },
+                { id: "partner", name: s.partner, profile: partnerPersonality },
+              ].map(({ id, name, profile }) => (
+                <article key={id}>
+                  <div className="personality-card-head">
+                    <img src={profile.world.image} alt="" />
+                    <div>
+                      <small>{name}さん</small>
+                      <h3>{profile.style.name}</h3>
+                    </div>
+                  </div>
+                  <p>{profile.style.tagline}</p>
+                  <div className="trait-tags">
+                    {profile.axes.map((axis) => (
+                      <span key={axis.key}>{axis.shortLabel}</span>
+                    ))}
+                  </div>
+                  <p className="personality-evidence">
+                    「{profile.evidence[0].answer}」という回答から、
+                    {profile.evidence[0].insight}
+                  </p>
+                </article>
+              ))}
+            </div>
+            <div className="axis-comparison-list">
+              {creatorPersonality.axes.map((creatorAxis) => {
+                const partnerAxis = partnerPersonality.axes.find(
+                  (axis) => axis.key === creatorAxis.key,
+                );
+                return (
+                  <div className="axis-comparison" key={creatorAxis.key}>
+                    <header>
+                      <b>{creatorAxis.name}</b>
+                      <span>
+                        {creatorAxis.shortLabel} ／ {partnerAxis?.shortLabel}
+                      </span>
+                    </header>
+                    <div className="axis-poles">
+                      <small>
+                        {
+                          axes.find((axis) => axis.key === creatorAxis.key)
+                            ?.negative.shortLabel
+                        }
+                      </small>
+                      <small>
+                        {
+                          axes.find((axis) => axis.key === creatorAxis.key)
+                            ?.positive.shortLabel
+                        }
+                      </small>
+                    </div>
+                    <div className="axis-track">
+                      <i
+                        className="creator-dot"
+                        title={`${s.creator}: ${creatorAxis.label}`}
+                        style={{ left: `${(creatorAxis.position + 100) / 2}%` }}
+                      />
+                      <i
+                        className="partner-dot"
+                        title={`${s.partner}: ${partnerAxis?.label}`}
+                        style={{
+                          left: `${((partnerAxis?.position ?? 0) + 100) / 2}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {closestAxis && contrastAxis && (
+              <p className="axis-summary">
+                「{closestAxis.creator.name}」は近い感覚を持ちやすい軸です。 「
+                {contrastAxis.creator.name}
+                」は違いが出やすいぶん、理由を聞くと相手らしさが見えてきます。
+              </p>
+            )}
+          </section>
+        )}
         <section className="relationship-reading">
           <p className="eyebrow">YOUR RELATIONSHIP</p>
           <h2>このふたりらしさ</h2>
@@ -768,7 +945,8 @@ export function Result({ token }: { token: string }) {
                 <li key={q.id}>
                   <b>{q.question}</b>
                   <br />
-                  ふたりとも「{q.options[s.answers[questions.indexOf(q)]]}」
+                  ふたりとも「
+                  {optionLabel(q, s.answers[resultQuestions.indexOf(q)])}」
                 </li>
               ))}
             </ul>
@@ -777,11 +955,11 @@ export function Result({ token }: { token: string }) {
             <h3>ふたりらしい違い</h3>
             <ul>
               {diff.map((q) => {
-                const i = questions.indexOf(q);
+                const i = resultQuestions.indexOf(q);
                 return (
                   <li key={q.id}>
-                    {s.creator}は「{q.options[s.answers[i]]}」、{s.partner}は「
-                    {q.options[b[i]]}」
+                    {s.creator}は「{optionLabel(q, s.answers[i])}」、
+                    {s.partner}は「{optionLabel(q, b[i])}」
                   </li>
                 );
               })}
@@ -885,7 +1063,7 @@ export function Result({ token }: { token: string }) {
               </div>
               <div className="prediction-table">
                 {predictionQuestions.map((question, predictionIndex) => {
-                  const questionIndex = questions.indexOf(question);
+                  const questionIndex = resultQuestions.indexOf(question);
                   const creatorHit =
                     s.predictions[predictionIndex] === b[questionIndex];
                   const partnerHit =
@@ -909,7 +1087,7 @@ export function Result({ token }: { token: string }) {
             <section className="premium-section">
               <h3>全24問の答え合わせ</h3>
               <div className="all-answers">
-                {questions.map((question, index) => (
+                {resultQuestions.map((question, index) => (
                   <article key={question.id}>
                     <div>
                       <small>{question.category}</small>
@@ -917,11 +1095,11 @@ export function Result({ token }: { token: string }) {
                     </div>
                     <p>
                       <b>{s.creator}</b>
-                      {question.options[s.answers[index]]}
+                      {optionLabel(question, s.answers[index])}
                     </p>
                     <p>
                       <b>{s.partner}</b>
-                      {question.options[b[index]]}
+                      {optionLabel(question, b[index])}
                     </p>
                     <span
                       className={s.answers[index] === b[index] ? "same" : ""}
@@ -987,15 +1165,16 @@ export function Result({ token }: { token: string }) {
               決済完了後すぐに提供されます。提供開始後のお客様都合による返金はできません。不具合・重複決済は対応します。カード明細には「KACHIKAN
               MATCH」等と表示されます。
               <br />
-              <a href="/commerce">販売条件</a>・<a href="/terms">利用規約</a>
+              <Link href="/commerce">販売条件</Link>・
+              <Link href="/terms">利用規約</Link>
               に同意のうえ購入してください。
             </p>
             {error && <p className="error-message">{error}</p>}
           </section>
         )}
-        <a className="button secondary" href="/">
+        <Link className="button secondary" href="/">
           サイトTOPへ戻る
-        </a>
+        </Link>
         <p className="notice">
           この結果は、回答内容をもとにしたエンターテインメントです。心理学的・医学的な診断や、関係性の良し悪しを断定するものではありません。
         </p>
@@ -1007,9 +1186,9 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <main className="app-shell">
       <nav className="app-nav">
-        <a className="brand" href="/">
+        <Link className="brand" href="/">
           <i>ふ</i> フタリシル
-        </a>
+        </Link>
         <span className="question-meta">登録不要 · 約5分</span>
       </nav>
       {children}
