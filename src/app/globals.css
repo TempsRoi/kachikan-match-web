@@ -599,19 +599,32 @@ footer div {
 }
 .solo-world {
   display: grid;
-  grid-template-columns: 180px 1fr;
+  grid-template-areas:
+    "label label"
+    "image content";
+  grid-template-columns: 180px minmax(0, 1fr);
   gap: 28px;
   align-items: center;
   padding-bottom: 34px;
   border-bottom: 1px solid #e5e9e4;
 }
+.solo-world > .eyebrow {
+  grid-area: label;
+  margin: 0;
+  text-align: center;
+}
 .solo-world > img {
+  grid-area: image;
   width: 180px;
   height: 180px;
   object-fit: cover;
   border-radius: 50%;
   border: 6px solid #fff;
   box-shadow: 0 14px 35px #34483c2b;
+}
+.solo-world > div {
+  grid-area: content;
+  min-width: 0;
 }
 .solo-world h1 {
   margin: 2px 0 10px;
@@ -1457,6 +1470,10 @@ footer div {
   }
   .solo-world {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "label"
+      "image"
+      "content";
     text-align: center;
   }
   .solo-world > img {
