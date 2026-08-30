@@ -74,6 +74,22 @@ a {
   font-size: 12px;
   color: #66736e;
 }
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.locale-switch {
+  padding: 8px 12px;
+  border: 1px solid #bdc9c2;
+  border-radius: 999px;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 700;
+}
+.locale-switch:hover {
+  background: #edf4ef;
+}
 .hero-copy {
   max-width: 650px;
   margin-top: 130px;
@@ -123,6 +139,13 @@ a {
 }
 .primary span {
   font-size: 22px;
+}
+.primary.preview-disabled {
+  cursor: default;
+  gap: 0;
+  justify-content: center;
+  background: #7d8d87;
+  box-shadow: none;
 }
 .privacy-note {
   font-size: 12px;
