@@ -1,4 +1,10 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "特定商取引法に基づく表記",
+  alternates: { canonical: "/commerce" },
+};
 
 const rows = [
   ["サービス名", "フタリシル（ふたりで遊ぶ価値観マッチ）"],

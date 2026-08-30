@@ -1,4 +1,10 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "利用規約",
+  alternates: { canonical: "/terms" },
+};
 
 export default function Page() {
   return (

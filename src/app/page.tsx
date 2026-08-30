@@ -1,4 +1,9 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 const personalityAxes = [
   ["cafe", "つながり方", "自分のペース ↔ 一緒に共有"],
@@ -34,10 +39,24 @@ export default function Home() {
     "@context": "https://schema.org",
     "@graph": [
       {
-        "@type": "WebApplication",
-        name: "フタリシル",
-        alternateName: "価値観マッチ",
+        "@type": "WebSite",
+        "@id": "https://www.kachikanmatch.jp/#website",
         url: "https://www.kachikanmatch.jp/",
+        name: "フタリシル",
+        alternateName: [
+          "ふたりしる",
+          "FUTARISHIRU",
+          "kachikanmatch.jp",
+        ],
+        inLanguage: "ja",
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://www.kachikanmatch.jp/#webapp",
+        name: "フタリシル",
+        alternateName: ["ふたりしる", "FUTARISHIRU", "価値観マッチ"],
+        url: "https://www.kachikanmatch.jp/",
+        isPartOf: { "@id": "https://www.kachikanmatch.jp/#website" },
         applicationCategory: "EntertainmentApplication",
         operatingSystem: "Web",
         inLanguage: "ja",
@@ -73,7 +92,11 @@ export default function Home() {
       <section className="hero">
         <nav className="nav">
           <span className="brand">
-            <i>ふ</i> フタリシル
+            <i>ふ</i>
+            <span>
+              フタリシル
+              <small className="brand-alias">ふたりしる / FUTARISHIRU</small>
+            </span>
           </span>
           <span className="nav-note">登録不要 · 約5分</span>
         </nav>
@@ -239,7 +262,11 @@ export default function Home() {
       </section>
       <footer>
         <span className="brand">
-          <i>ふ</i> フタリシル
+          <i>ふ</i>
+          <span>
+            フタリシル
+            <small className="brand-alias">ふたりしる / FUTARISHIRU</small>
+          </span>
         </span>
         <div>
           <Link href="/terms">利用規約</Link>
