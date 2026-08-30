@@ -6,7 +6,6 @@ const stepImages = ["answer", "invite", "result"];
 
 export function MarketingHome({ locale }: { locale: Locale }) {
   const content = marketingContent[locale];
-  const isEnglishPreview = locale === "en";
   const siteUrl =
     locale === "en"
       ? "https://playfutarishiru.com/en"
@@ -52,19 +51,14 @@ export function MarketingHome({ locale }: { locale: Locale }) {
     ],
   };
 
-  const primaryCta = (label: string, light = false) =>
-    isEnglishPreview ? (
-      <span
-        className={`primary preview-disabled${light ? " light" : ""}`}
-        aria-disabled="true"
-      >
-        {label}
-      </span>
-    ) : (
-      <Link className={`primary${light ? " light" : ""}`} href="/start">
-        {label} <span>→</span>
-      </Link>
-    );
+  const primaryCta = (label: string, light = false) => (
+    <Link
+      className={`primary${light ? " light" : ""}`}
+      href={locale === "en" ? "/en/start" : "/start"}
+    >
+      {label} <span>→</span>
+    </Link>
+  );
 
   return (
     <main lang={locale}>

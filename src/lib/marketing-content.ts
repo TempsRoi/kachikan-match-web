@@ -206,7 +206,7 @@ const english: MarketingContent = {
     line2: "know each other?",
     lead1: "Don’t just compare answers—predict theirs.",
     lead2: "Discover what you share, where you differ, and what surprises you.",
-    cta: "English game coming next",
+    cta: "Start your game",
     privacy:
       "🔒 No account required · Your answers stay between the two of you",
   },
@@ -275,7 +275,7 @@ const english: MarketingContent = {
   report: {
     title: "Start with a free discovery. Go deeper when you’re ready.",
     body: "See your connection style, four personality dimensions, values alignment, and how accurately you predicted each other—for free. The full report explores all 24 answers, including how you support each other, express care, and navigate misunderstandings.",
-    cta: "English game coming next",
+    cta: "Play for free",
     label: "FULL REPORT",
     price: "$4.99",
     priceNote: "USD",
@@ -317,7 +317,7 @@ const english: MarketingContent = {
   closing: {
     title: "Try it with someone who matters.",
     body: "Partners, friends, spouses, and family—connection can start anywhere.",
-    cta: "English game coming next",
+    cta: "Start your game",
   },
   footer: {
     terms: "Terms (Japanese)",
