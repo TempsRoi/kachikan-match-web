@@ -1,6 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { adminDb, authenticatedUid } from "@/lib/firebase-admin";
+import { contentVersionFor, normalizeLocale } from "@/lib/locales";
 
 export async function POST(
   request: Request,
@@ -25,9 +26,11 @@ export async function POST(
       const snap = await tx.get(ref);
       const data = snap.data();
       if (!data) throw new Error("not-found");
+      const locale = normalizeLocale(data.locale);
+      const contentVersion = data.contentVersion ?? contentVersionFor(locale);
       if (data.expiresAt?.toMillis() < Date.now()) throw new Error("expired");
       if (data.creatorUserId === uid)
-        return { sessionId, role: "creator", data };
+        return { sessionId, role: "creator", data, locale, contentVersion };
       if (data.partnerUserId && data.partnerUserId !== uid)
         throw new Error("occupied");
       if (!data.partnerUserId) {
@@ -44,11 +47,13 @@ export async function POST(
           styleKey: null,
           axisScores: null,
           scoringVersion: data.scoringVersion ?? "v1",
+          locale,
+          contentVersion,
           createdAt: FieldValue.serverTimestamp(),
           completedAt: null,
         });
       }
-      return { sessionId, role: "partner", data };
+      return { sessionId, role: "partner", data, locale, contentVersion };
     });
     return NextResponse.json({
       role: result.role,
@@ -56,6 +61,8 @@ export async function POST(
       partner: result.data.partnerName,
       status: result.data.status,
       scoringVersion: result.data.scoringVersion ?? "v1",
+      locale: result.locale,
+      contentVersion: result.contentVersion,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";

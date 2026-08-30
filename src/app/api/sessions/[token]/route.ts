@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb, authenticatedUid } from "@/lib/firebase-admin";
+import { contentVersionFor, normalizeLocale } from "@/lib/locales";
 
 export async function GET(
   request: Request,
@@ -27,9 +28,12 @@ export async function GET(
   const data = snap.data();
   if (!data || (data.creatorUserId !== uid && data.partnerUserId !== uid))
     return NextResponse.json({ error: "閲覧できません" }, { status: 403 });
+  const locale = normalizeLocale(data.locale);
   return NextResponse.json({
     creator: data.creatorName,
     partner: data.partnerName,
     status: data.status,
+    locale,
+    contentVersion: data.contentVersion ?? contentVersionFor(locale),
   });
 }

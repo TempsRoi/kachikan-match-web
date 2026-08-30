@@ -3,11 +3,17 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { adminDb, authenticatedUid } from "@/lib/firebase-admin";
+import {
+  contentVersionFor,
+  DEFAULT_LOCALE,
+  SUPPORTED_LOCALES,
+} from "@/lib/locales";
 import { SCORING_VERSION } from "@/lib/questions";
 
 const schema = z.object({
   creatorName: z.string().trim().min(1).max(20),
   partnerName: z.string().trim().min(1).max(20),
+  locale: z.enum(SUPPORTED_LOCALES).default(DEFAULT_LOCALE),
 });
 
 export async function POST(request: Request) {
@@ -22,6 +28,7 @@ export async function POST(request: Request) {
     );
   try {
     const input = schema.parse(await request.json());
+    const contentVersion = contentVersionFor(input.locale);
     const sessionRef = db.collection("sessions").doc();
     const publicToken = randomBytes(24).toString("base64url");
     const now = FieldValue.serverTimestamp();
@@ -34,6 +41,8 @@ export async function POST(request: Request) {
       partnerUserId: null,
       status: "creator_answering",
       scoringVersion: SCORING_VERSION,
+      locale: input.locale,
+      contentVersion,
       paid: false,
       createdAt: now,
       updatedAt: now,
@@ -48,6 +57,8 @@ export async function POST(request: Request) {
       styleKey: null,
       axisScores: null,
       scoringVersion: SCORING_VERSION,
+      locale: input.locale,
+      contentVersion,
       createdAt: now,
       completedAt: null,
     });

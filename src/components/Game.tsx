@@ -13,6 +13,7 @@ import {
   worldFor,
 } from "@/lib/questions";
 import { apiJson, firebaseEnabled } from "@/lib/firebase";
+import { contentVersionFor, DEFAULT_LOCALE, type Locale } from "@/lib/locales";
 
 type Saved = {
   creator: string;
@@ -23,6 +24,8 @@ type Saved = {
   partnerPredictions?: number[];
   paid?: boolean;
   scoringVersion?: string;
+  locale?: Locale;
+  contentVersion?: string;
 };
 type SelfProfile = {
   displayName: string;
@@ -85,7 +88,11 @@ export function StartGame() {
       if (firebaseEnabled) {
         const data = await apiJson<{ token: string }>("/api/sessions", {
           method: "POST",
-          body: JSON.stringify({ creatorName: creator, partnerName: partner }),
+          body: JSON.stringify({
+            creatorName: creator,
+            partnerName: partner,
+            locale: DEFAULT_LOCALE,
+          }),
         });
         token = data.token;
       }
@@ -97,6 +104,8 @@ export function StartGame() {
           answers: reuseAnswers && profile ? profile.answers : [],
           predictions: [],
           scoringVersion: SCORING_VERSION,
+          locale: DEFAULT_LOCALE,
+          contentVersion: contentVersionFor(DEFAULT_LOCALE),
         }),
       );
       router.push(`/play/${token}?role=creator`);
@@ -218,6 +227,8 @@ export function PlayGame({ token }: { token: string }) {
       partner: string;
       role: "creator" | "partner";
       scoringVersion: string;
+      locale: Locale;
+      contentVersion: string;
     }>(`/api/sessions/${token}/join`, { method: "POST" })
       .then((data) => {
         const reusable =
@@ -230,6 +241,8 @@ export function PlayGame({ token }: { token: string }) {
           partnerAnswers: reusable?.answers || [],
           partnerPredictions: [],
           scoringVersion: data.scoringVersion,
+          locale: data.locale,
+          contentVersion: data.contentVersion,
         };
         localStorage.setItem(key(token), JSON.stringify(initial));
         restoreProgress(initial);

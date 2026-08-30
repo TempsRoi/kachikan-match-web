@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb, authenticatedUid } from "@/lib/firebase-admin";
+import { contentVersionFor, normalizeLocale } from "@/lib/locales";
 import { questionSetFor } from "@/lib/questions";
 
 export async function GET(
@@ -37,6 +38,7 @@ export async function GET(
       { status: 409 },
     );
   const scoringVersion = session.scoringVersion ?? "v1";
+  const locale = normalizeLocale(session.locale);
   const questions = questionSetFor(scoringVersion);
   const [answerSnap, predictionSnap] = await Promise.all([
     ref.collection("answers").get(),
@@ -56,6 +58,8 @@ export async function GET(
     creator: session.creatorName,
     partner: session.partnerName,
     scoringVersion,
+    locale,
+    contentVersion: session.contentVersion ?? contentVersionFor(locale),
     paid: session.paid === true,
     answers: questions.map((q) => answerMap.get(`creator_${q.id}`)),
     partnerAnswers: questions.map((q) => answerMap.get(`partner_${q.id}`)),
