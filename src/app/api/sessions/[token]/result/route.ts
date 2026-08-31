@@ -1,37 +1,25 @@
 import { NextResponse } from "next/server";
-import { adminDb, authenticatedUid } from "@/lib/firebase-admin";
 import { contentVersionFor, normalizeLocale } from "@/lib/locales";
 import { questionSetFor } from "@/lib/questions";
+import { authorizedReportSession, recoveryCodeFor } from "@/lib/report-access";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ token: string }> },
 ) {
-  const uid = await authenticatedUid(request);
-  const db = adminDb();
-  if (!uid)
-    return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
-  if (!db)
-    return NextResponse.json(
-      { error: "Firebase Adminが未設定です" },
-      { status: 503 },
-    );
   const { token } = await params;
-  const tokenSnap = await db.collection("publicTokens").doc(token).get();
-  const sessionId = tokenSnap.data()?.sessionId as string | undefined;
-  if (!sessionId)
-    return NextResponse.json(
-      { error: "結果が見つかりません" },
-      { status: 404 },
-    );
+  const access = await authorizedReportSession(request, token);
+  if ("error" in access) {
+    const status =
+      access.error === "database-unavailable"
+        ? 503
+        : access.error === "not-found"
+          ? 404
+          : 403;
+    return NextResponse.json({ error: "閲覧できません" }, { status });
+  }
+  const { db, sessionId, session, accessExpiresAt } = access;
   const ref = db.collection("sessions").doc(sessionId);
-  const sessionSnap = await ref.get();
-  const session = sessionSnap.data();
-  if (
-    !session ||
-    (session.creatorUserId !== uid && session.partnerUserId !== uid)
-  )
-    return NextResponse.json({ error: "閲覧できません" }, { status: 403 });
   if (session.status !== "completed")
     return NextResponse.json(
       { error: "相手の回答を待っています" },
@@ -60,7 +48,9 @@ export async function GET(
     scoringVersion,
     locale,
     contentVersion: session.contentVersion ?? contentVersionFor(locale),
-    paid: session.paid === true,
+    paid: Boolean(accessExpiresAt),
+    accessExpiresAt: accessExpiresAt?.toISOString() ?? null,
+    recoveryCode: accessExpiresAt ? recoveryCodeFor(sessionId) : null,
     answers: questions.map((q) => answerMap.get(`creator_${q.id}`)),
     partnerAnswers: questions.map((q) => answerMap.get(`partner_${q.id}`)),
     predictions: predictionQuestions.map((q) =>

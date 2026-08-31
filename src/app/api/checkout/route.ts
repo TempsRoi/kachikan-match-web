@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { z } from "zod";
 import { adminDb, authenticatedUid } from "@/lib/firebase-admin";
+import { grantReportAccess } from "@/lib/report-access";
 
 const schema = z.object({ token: z.string().min(20).max(128) });
 
@@ -40,14 +41,27 @@ export async function POST(request: Request) {
         { error: "ふたりの回答完了後に購入できます" },
         { status: 409 },
       );
+    const resultPath =
+      sessionData.locale === "en" ? `/en/result/${token}` : `/result/${token}`;
     if (sessionData.paid === true)
-      return NextResponse.json({ alreadyPaid: true, url: `/result/${token}` });
+      return NextResponse.json({ alreadyPaid: true, url: resultPath });
 
     const allowMock =
       process.env.ENABLE_MOCK_PAYMENT === "true" &&
       process.env.VERCEL_ENV !== "production";
-    if (allowMock)
-      return NextResponse.json({ mock: true, url: `/result/${token}?paid=1` });
+    if (allowMock) {
+      await grantReportAccess(db, sessionId);
+      return NextResponse.json({
+        mock: true,
+        url: `${resultPath}?checkout=mock`,
+      });
+    }
+
+    if (sessionData.locale === "en")
+      return NextResponse.json(
+        { error: "Managed Payments checkout is not configured yet." },
+        { status: 503 },
+      );
 
     const secretKey = process.env.STRIPE_SECRET_KEY;
     if (!secretKey)

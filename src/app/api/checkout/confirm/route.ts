@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { z } from "zod";
 import { adminDb, authenticatedUid } from "@/lib/firebase-admin";
+import { grantReportAccess } from "@/lib/report-access";
 
 const schema = z.object({ sessionId: z.string().startsWith("cs_") });
 
@@ -10,9 +11,13 @@ export async function POST(request: Request) {
   const uid = await authenticatedUid(request);
   const db = adminDb();
   const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!uid) return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+  if (!uid)
+    return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
   if (!db || !secretKey)
-    return NextResponse.json({ error: "決済を確認できません" }, { status: 503 });
+    return NextResponse.json(
+      { error: "決済を確認できません" },
+      { status: 503 },
+    );
   try {
     const { sessionId: checkoutId } = schema.parse(await request.json());
     const stripe = new Stripe(secretKey);
@@ -30,27 +35,27 @@ export async function POST(request: Request) {
       );
     const paymentSnap = await db.collection("payments").doc(checkout.id).get();
     if (paymentSnap.data()?.sessionId !== sessionId)
-      return NextResponse.json({ error: "決済情報が一致しません" }, { status: 403 });
+      return NextResponse.json(
+        { error: "決済情報が一致しません" },
+        { status: 403 },
+      );
 
-    const batch = db.batch();
-    batch.update(db.collection("sessions").doc(sessionId), {
-      paid: true,
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-    batch.set(
-      db.collection("payments").doc(checkout.id),
-      {
-        status: "paid",
-        stripePaymentIntentId:
-          typeof checkout.payment_intent === "string"
-            ? checkout.payment_intent
-            : checkout.payment_intent?.id || null,
-        updatedAt: FieldValue.serverTimestamp(),
-        paidAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
-    await batch.commit();
+    await grantReportAccess(db, sessionId);
+    await db
+      .collection("payments")
+      .doc(checkout.id)
+      .set(
+        {
+          status: "paid",
+          stripePaymentIntentId:
+            typeof checkout.payment_intent === "string"
+              ? checkout.payment_intent
+              : checkout.payment_intent?.id || null,
+          updatedAt: FieldValue.serverTimestamp(),
+          paidAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
     return NextResponse.json({ paid: true });
   } catch (error) {
     console.error("Checkout confirmation failed", error);

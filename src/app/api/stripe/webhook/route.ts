@@ -2,6 +2,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminDb } from "@/lib/firebase-admin";
+import { grantReportAccess } from "@/lib/report-access";
 
 export async function POST(request: Request) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -21,7 +22,10 @@ export async function POST(request: Request) {
     );
     const db = adminDb();
     if (!db)
-      return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
+      return NextResponse.json(
+        { error: "Database unavailable" },
+        { status: 503 },
+      );
 
     if (event.type === "checkout.session.completed") {
       const checkout = event.data.object;
@@ -30,43 +34,49 @@ export async function POST(request: Request) {
       const sessionId = checkout.metadata?.sessionId;
       const publicToken = checkout.metadata?.publicToken;
       if (!sessionId || !publicToken)
-        return NextResponse.json({ error: "Missing metadata" }, { status: 400 });
-      const tokenSnap = await db.collection("publicTokens").doc(publicToken).get();
+        return NextResponse.json(
+          { error: "Missing metadata" },
+          { status: 400 },
+        );
+      const tokenSnap = await db
+        .collection("publicTokens")
+        .doc(publicToken)
+        .get();
       if (tokenSnap.data()?.sessionId !== sessionId)
         return NextResponse.json({ error: "Invalid session" }, { status: 400 });
 
-      const batch = db.batch();
-      batch.update(db.collection("sessions").doc(sessionId), {
-        paid: true,
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-      batch.set(
-        db.collection("payments").doc(checkout.id),
-        {
-          sessionId,
-          publicToken,
-          purchaserUserId: checkout.metadata?.purchaserUserId || null,
-          stripeCheckoutSessionId: checkout.id,
-          stripePaymentIntentId:
-            typeof checkout.payment_intent === "string"
-              ? checkout.payment_intent
-              : checkout.payment_intent?.id || null,
-          amount: checkout.amount_total,
-          currency: checkout.currency,
-          status: "paid",
-          updatedAt: FieldValue.serverTimestamp(),
-          paidAt: FieldValue.serverTimestamp(),
-        },
-        { merge: true },
-      );
-      await batch.commit();
+      await grantReportAccess(db, sessionId);
+      await db
+        .collection("payments")
+        .doc(checkout.id)
+        .set(
+          {
+            sessionId,
+            publicToken,
+            purchaserUserId: checkout.metadata?.purchaserUserId || null,
+            stripeCheckoutSessionId: checkout.id,
+            stripePaymentIntentId:
+              typeof checkout.payment_intent === "string"
+                ? checkout.payment_intent
+                : checkout.payment_intent?.id || null,
+            amount: checkout.amount_total,
+            currency: checkout.currency,
+            status: "paid",
+            updatedAt: FieldValue.serverTimestamp(),
+            paidAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
     }
 
     if (event.type === "checkout.session.expired") {
-      await db.collection("payments").doc(event.data.object.id).set(
-        { status: "failed", updatedAt: FieldValue.serverTimestamp() },
-        { merge: true },
-      );
+      await db
+        .collection("payments")
+        .doc(event.data.object.id)
+        .set(
+          { status: "failed", updatedAt: FieldValue.serverTimestamp() },
+          { merge: true },
+        );
     }
     return NextResponse.json({ received: true });
   } catch (error) {

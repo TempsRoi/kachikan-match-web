@@ -3,10 +3,15 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { apiJson, firebaseEnabled } from "@/lib/firebase";
+import { apiFetch, apiJson, firebaseEnabled } from "@/lib/firebase";
+import { buildEnglishReport } from "@/lib/english-report";
 import { contentVersionFor } from "@/lib/locales";
-import { closeness, optionLabel, SCORING_VERSION } from "@/lib/questions";
-import { englishAxes, englishProfile, englishQuestions } from "@/lib/questions-en";
+import { SCORING_VERSION } from "@/lib/questions";
+import {
+  englishAxes,
+  englishProfile,
+  englishQuestions,
+} from "@/lib/questions-en";
 
 type Saved = {
   creator: string;
@@ -16,6 +21,8 @@ type Saved = {
   partnerAnswers?: number[];
   partnerPredictions?: number[];
   paid?: boolean;
+  accessExpiresAt?: string | null;
+  recoveryCode?: string | null;
   scoringVersion?: string;
   locale?: "en";
   contentVersion?: string;
@@ -30,13 +37,20 @@ type SelfProfile = {
 
 const gameKey = (token: string) => `km:${token}`;
 const selfKey = "km:self-profile:en";
-const path = (page: string, token?: string) => `/en/${page}${token ? `/${token}` : ""}`;
-const randomAnswers = () => englishQuestions.map((_, index) => (index * 7 + 2) % 4);
+const path = (page: string, token?: string) =>
+  `/en/${page}${token ? `/${token}` : ""}`;
+const randomAnswers = () =>
+  englishQuestions.map((_, index) => (index * 7 + 2) % 4);
+const englishCheckoutEnabled =
+  process.env.NEXT_PUBLIC_ENGLISH_CHECKOUT_ENABLED === "true";
 
 function loadSelfProfile(): SelfProfile | null {
   try {
     const value = JSON.parse(localStorage.getItem(selfKey) || "null");
-    return value?.scoringVersion === SCORING_VERSION && value?.answers?.length === englishQuestions.length ? value : null;
+    return value?.scoringVersion === SCORING_VERSION &&
+      value?.answers?.length === englishQuestions.length
+      ? value
+      : null;
   } catch {
     return null;
   }
@@ -44,7 +58,15 @@ function loadSelfProfile(): SelfProfile | null {
 
 function saveSelfProfile(displayName: string, answers: number[]) {
   if (answers.length !== englishQuestions.length) return;
-  localStorage.setItem(selfKey, JSON.stringify({ displayName, answers, savedAt: new Date().toISOString(), scoringVersion: SCORING_VERSION } satisfies SelfProfile));
+  localStorage.setItem(
+    selfKey,
+    JSON.stringify({
+      displayName,
+      answers,
+      savedAt: new Date().toISOString(),
+      scoringVersion: SCORING_VERSION,
+    } satisfies SelfProfile),
+  );
 }
 
 export function EnglishStartGame() {
@@ -79,7 +101,11 @@ export function EnglishStartGame() {
       if (firebaseEnabled) {
         const data = await apiJson<{ token: string }>("/api/sessions", {
           method: "POST",
-          body: JSON.stringify({ creatorName: creator.trim(), partnerName: partner.trim(), locale: "en" }),
+          body: JSON.stringify({
+            creatorName: creator.trim(),
+            partnerName: partner.trim(),
+            locale: "en",
+          }),
         });
         token = data.token;
       }
@@ -104,17 +130,30 @@ export function EnglishStartGame() {
     <EnglishShell>
       <div className="panel">
         <p className="eyebrow">STEP 1 OF 3</p>
-        <h1>What should we call<br />the two of you?</h1>
+        <h1>
+          What should we call
+          <br />
+          the two of you?
+        </h1>
         <p>Nicknames are perfect. No real names or email addresses required.</p>
         {profile && savedProfile && (
           <section className="saved-profile">
             <img src={savedProfile.world.image} alt="" />
             <div>
               <p className="eyebrow">SAVED ANSWERS</p>
-              <h2>{profile.displayName} · {savedProfile.style.name}</h2>
-              <p>Your 24 answers from your previous game are saved on this device.</p>
+              <h2>
+                {profile.displayName} · {savedProfile.style.name}
+              </h2>
+              <p>
+                Your 24 answers from your previous game are saved on this
+                device.
+              </p>
               <label className="reuse-toggle">
-                <input type="checkbox" checked={reuseAnswers} onChange={(event) => setReuseAnswers(event.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={reuseAnswers}
+                  onChange={(event) => setReuseAnswers(event.target.checked)}
+                />
                 <span>Reuse my saved answers</span>
               </label>
             </div>
@@ -122,17 +161,39 @@ export function EnglishStartGame() {
         )}
         <div className="field">
           <label htmlFor="creator-name">Your name</label>
-          <input id="creator-name" value={creator} maxLength={20} onChange={(event) => setCreator(event.target.value)} placeholder="e.g. Alex" autoComplete="nickname" />
+          <input
+            id="creator-name"
+            value={creator}
+            maxLength={20}
+            onChange={(event) => setCreator(event.target.value)}
+            placeholder="e.g. Alex"
+            autoComplete="nickname"
+          />
         </div>
         <div className="field">
           <label htmlFor="partner-name">Their name</label>
-          <input id="partner-name" value={partner} maxLength={20} onChange={(event) => setPartner(event.target.value)} placeholder="e.g. Jamie" autoComplete="off" />
+          <input
+            id="partner-name"
+            value={partner}
+            maxLength={20}
+            onChange={(event) => setPartner(event.target.value)}
+            placeholder="e.g. Jamie"
+            autoComplete="off"
+          />
         </div>
         <button className="button" onClick={begin} disabled={busy}>
-          {busy ? "Setting things up…" : reuseAnswers && profile ? "Predict their answers →" : "Answer my questions →"}
+          {busy
+            ? "Setting things up…"
+            : reuseAnswers && profile
+              ? "Predict their answers →"
+              : "Answer my questions →"}
         </button>
         {error && <p className="error-message">{error}</p>}
-        <p className="notice">Your own answers are saved on this device so you can reuse them. Your answers are shared only with the person you invite so you can view the result together.</p>
+        <p className="notice">
+          Your own answers are saved on this device so you can reuse them. Your
+          answers are shared only with the person you invite so you can view the
+          result together.
+        </p>
       </div>
     </EnglishShell>
   );
@@ -146,24 +207,40 @@ export function EnglishPlayGame({ token }: { token: string }) {
   const [role, setRole] = useState<"creator" | "partner">("creator");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const predictionQuestions = englishQuestions.filter((question) => question.prediction);
+  const predictionQuestions = englishQuestions.filter(
+    (question) => question.prediction,
+  );
 
   useEffect(() => {
-    const requestedRole = new URLSearchParams(location.search).get("role") === "partner" ? "partner" : "creator";
+    const requestedRole =
+      new URLSearchParams(location.search).get("role") === "partner"
+        ? "partner"
+        : "creator";
     // Restore URL and local state after hydration.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setRole(requestedRole);
     const restore = (data: Saved) => {
       if (data.locale && data.locale !== "en") {
-        router.replace(requestedRole === "partner" ? `/play/${token}?role=partner` : "/");
+        router.replace(
+          requestedRole === "partner" ? `/play/${token}?role=partner` : "/",
+        );
         return;
       }
       setSaved(data);
-      const answers = requestedRole === "creator" ? data.answers : data.partnerAnswers || [];
-      const predictions = requestedRole === "creator" ? data.predictions : data.partnerPredictions || [];
+      const answers =
+        requestedRole === "creator" ? data.answers : data.partnerAnswers || [];
+      const predictions =
+        requestedRole === "creator"
+          ? data.predictions
+          : data.partnerPredictions || [];
       if (answers.length === englishQuestions.length) {
         setPhase("predict");
-        setIndex(Math.max(0, predictions.findIndex((value) => value === undefined)));
+        setIndex(
+          Math.max(
+            0,
+            predictions.findIndex((value) => value === undefined),
+          ),
+        );
       }
     };
     const local = localStorage.getItem(gameKey(token));
@@ -175,28 +252,72 @@ export function EnglishPlayGame({ token }: { token: string }) {
       router.push("/en");
       return;
     }
-    apiJson<{ creator: string; partner: string; scoringVersion: string; locale: "ja" | "en"; contentVersion: string }>(`/api/sessions/${token}/join`, { method: "POST" })
+    apiJson<{
+      creator: string;
+      partner: string;
+      scoringVersion: string;
+      locale: "ja" | "en";
+      contentVersion: string;
+    }>(`/api/sessions/${token}/join`, { method: "POST" })
       .then((data) => {
         if (data.locale !== "en") {
           router.replace(`/play/${token}?role=partner`);
           return;
         }
-        const reusable = data.scoringVersion === SCORING_VERSION ? loadSelfProfile() : null;
-        const initial: Saved = { creator: data.creator, partner: data.partner, answers: [], predictions: [], partnerAnswers: reusable?.answers || [], partnerPredictions: [], scoringVersion: data.scoringVersion, locale: "en", contentVersion: data.contentVersion };
+        const reusable =
+          data.scoringVersion === SCORING_VERSION ? loadSelfProfile() : null;
+        const initial: Saved = {
+          creator: data.creator,
+          partner: data.partner,
+          answers: [],
+          predictions: [],
+          partnerAnswers: reusable?.answers || [],
+          partnerPredictions: [],
+          scoringVersion: data.scoringVersion,
+          locale: "en",
+          contentVersion: data.contentVersion,
+        };
         localStorage.setItem(gameKey(token), JSON.stringify(initial));
         restore(initial);
       })
-      .catch(() => setError("We couldn't open this invitation. Check the link and try again."));
+      .catch(() =>
+        setError(
+          "We couldn't open this invitation. Check the link and try again.",
+        ),
+      );
   }, [router, token]);
 
-  if (!saved) return <EnglishShell><div className="panel"><h1>{error || "Checking your invitation…"}</h1>{error && <Link className="button secondary" href="/en">Back to home</Link>}</div></EnglishShell>;
+  if (!saved)
+    return (
+      <EnglishShell>
+        <div className="panel">
+          <h1>{error || "Checking your invitation…"}</h1>
+          {error && (
+            <Link className="button secondary" href="/en">
+              Back to home
+            </Link>
+          )}
+        </div>
+      </EnglishShell>
+    );
 
   const current = saved;
-  const question = phase === "answer" ? englishQuestions[index] : predictionQuestions[index];
+  const question =
+    phase === "answer" ? englishQuestions[index] : predictionQuestions[index];
   const target = role === "creator" ? current.partner : current.creator;
-  const activeField = phase === "answer" ? (role === "creator" ? "answers" : "partnerAnswers") : (role === "creator" ? "predictions" : "partnerPredictions");
-  const selectedChoice = (current[activeField] as number[] | undefined)?.[index];
-  const total = phase === "answer" ? englishQuestions.length : predictionQuestions.length;
+  const activeField =
+    phase === "answer"
+      ? role === "creator"
+        ? "answers"
+        : "partnerAnswers"
+      : role === "creator"
+        ? "predictions"
+        : "partnerPredictions";
+  const selectedChoice = (current[activeField] as number[] | undefined)?.[
+    index
+  ];
+  const total =
+    phase === "answer" ? englishQuestions.length : predictionQuestions.length;
 
   function goBack() {
     setError("");
@@ -215,19 +336,34 @@ export function EnglishPlayGame({ token }: { token: string }) {
     localStorage.setItem(gameKey(token), JSON.stringify(next));
     if (index + 1 < total) return setIndex(index + 1);
     if (phase === "answer") {
-      const ownAnswers = role === "creator" ? next.answers : next.partnerAnswers || [];
-      saveSelfProfile(role === "creator" ? next.creator : next.partner, ownAnswers);
+      const ownAnswers =
+        role === "creator" ? next.answers : next.partnerAnswers || [];
+      saveSelfProfile(
+        role === "creator" ? next.creator : next.partner,
+        ownAnswers,
+      );
       setPhase("predict");
       setIndex(0);
       return;
     }
-    saveSelfProfile(role === "creator" ? next.creator : next.partner, role === "creator" ? next.answers : next.partnerAnswers || []);
+    saveSelfProfile(
+      role === "creator" ? next.creator : next.partner,
+      role === "creator" ? next.answers : next.partnerAnswers || [],
+    );
     if (firebaseEnabled) {
       setSaving(true);
       try {
         await apiJson(`/api/sessions/${token}/responses`, {
           method: "POST",
-          body: JSON.stringify({ role, answers: role === "creator" ? next.answers : next.partnerAnswers || [], predictions: role === "creator" ? next.predictions : next.partnerPredictions || [] }),
+          body: JSON.stringify({
+            role,
+            answers:
+              role === "creator" ? next.answers : next.partnerAnswers || [],
+            predictions:
+              role === "creator"
+                ? next.predictions
+                : next.partnerPredictions || [],
+          }),
         });
       } catch {
         setSaving(false);
@@ -235,25 +371,55 @@ export function EnglishPlayGame({ token }: { token: string }) {
         return;
       }
     }
-    router.push(role === "creator" ? path("invite", token) : path("result", token));
+    router.push(
+      role === "creator" ? path("invite", token) : path("result", token),
+    );
   }
 
   return (
     <EnglishShell>
       <div className="panel">
-        <p className="question-meta">{phase === "answer" ? `${question.category} · YOUR ANSWER` : `PREDICT THEIR ANSWER`}　{index + 1} / {total}</p>
-        <div className="progress"><span style={{ width: `${((index + 1) / total) * 100}%` }} /></div>
-        <h1>{phase === "predict" ? `Which answer would ${target} choose?` : question.question}</h1>
+        <p className="question-meta">
+          {phase === "answer"
+            ? `${question.category} · YOUR ANSWER`
+            : `PREDICT THEIR ANSWER`}
+          　{index + 1} / {total}
+        </p>
+        <div className="progress">
+          <span style={{ width: `${((index + 1) / total) * 100}%` }} />
+        </div>
+        <h1>
+          {phase === "predict"
+            ? `Which answer would ${target} choose?`
+            : question.question}
+        </h1>
         {phase === "predict" && <p>{question.question}</p>}
         <div className="options">
           {question.options.map((option, optionIndex) => (
-            <button className={`option ${selectedChoice === optionIndex ? "active" : ""}`} key={option.label} onClick={() => choose(optionIndex)} aria-pressed={selectedChoice === optionIndex}>
+            <button
+              className={`option ${selectedChoice === optionIndex ? "active" : ""}`}
+              key={option.label}
+              onClick={() => choose(optionIndex)}
+              aria-pressed={selectedChoice === optionIndex}
+            >
               {String.fromCharCode(65 + optionIndex)}　{option.label}
             </button>
           ))}
         </div>
-        <div className="question-navigation"><button className="back-button" onClick={goBack} disabled={phase === "answer" && index === 0}>← Previous question</button><span>You can change an answer later</span></div>
-        <p className="notice">There are no right or wrong answers. Choose the one that feels closest to you.</p>
+        <div className="question-navigation">
+          <button
+            className="back-button"
+            onClick={goBack}
+            disabled={phase === "answer" && index === 0}
+          >
+            ← Previous question
+          </button>
+          <span>You can change an answer later</span>
+        </div>
+        <p className="notice">
+          There are no right or wrong answers. Choose the one that feels closest
+          to you.
+        </p>
         {saving && <p className="notice">Saving your answers securely…</p>}
         {error && <p className="error-message">{error}</p>}
       </div>
@@ -277,7 +443,9 @@ export function EnglishInvite({ token }: { token: string }) {
     if (!firebaseEnabled) return;
     const check = async () => {
       try {
-        const data = await apiJson<{ status: string }>(`/api/sessions/${token}`);
+        const data = await apiJson<{ status: string }>(
+          `/api/sessions/${token}`,
+        );
         if (data.status === "completed") setCompleted(true);
       } catch {}
     };
@@ -289,7 +457,10 @@ export function EnglishInvite({ token }: { token: string }) {
   if (!saved) return null;
   const current = saved;
   const profile = englishProfile(current.answers);
-  const invitationUrl = typeof location === "undefined" ? "" : `${location.origin}${path("play", token)}?role=partner`;
+  const invitationUrl =
+    typeof location === "undefined"
+      ? ""
+      : `${location.origin}${path("play", token)}?role=partner`;
   function simulate() {
     const next = {
       ...current,
@@ -311,17 +482,90 @@ export function EnglishInvite({ token }: { token: string }) {
         <section className="solo-world">
           <p className="eyebrow">YOUR CONNECTION STYLE</p>
           <img src={profile.world.image} alt="" />
-          <div><p>{saved.creator}&apos;s style</p><h1>{profile.style.name}</h1><p>{profile.style.tagline}</p><div className="solo-traits">{profile.axes.map((axis) => <span key={axis.key}>{axis.shortLabel}</span>)}</div></div>
+          <div>
+            <p>{saved.creator}&apos;s style</p>
+            <h1>{profile.style.name}</h1>
+            <p>{profile.style.tagline}</p>
+            <div className="solo-traits">
+              {profile.axes.map((axis) => (
+                <span key={axis.key}>{axis.shortLabel}</span>
+              ))}
+            </div>
+          </div>
         </section>
         {completed ? (
-          <section className="arrival-state" aria-live="polite"><div className="arrival-mark">✓</div><p className="eyebrow">ANSWER RECEIVED</p><h2>{saved.partner} has finished!</h2><p>See your connection styles and find out how well you predicted each other.</p><button className="button arrival-button" onClick={() => router.push(path("result", token))}>See our result →</button></section>
+          <section className="arrival-state" aria-live="polite">
+            <div className="arrival-mark">✓</div>
+            <p className="eyebrow">ANSWER RECEIVED</p>
+            <h2>{saved.partner} has finished!</h2>
+            <p>
+              See your connection styles and find out how well you predicted
+              each other.
+            </p>
+            <button
+              className="button arrival-button"
+              onClick={() => router.push(path("result", token))}
+            >
+              See our result →
+            </button>
+          </section>
         ) : (
           <>
-            <section className="waiting-state" aria-live="polite"><div className="waiting-visual"><img src={profile.world.image} alt="" /><div className="waiting-line"><i /><i /><i /></div><div className="empty-person">?</div></div><p className="eyebrow">WAITING FOR ANSWERS</p><h2>Waiting for {saved.partner}</h2><div className="waiting-dots"><i /><i /><i /></div><p>You can close this page. We will check again automatically when you return.</p></section>
-            <section className="invite-share"><h3>Share the private invitation</h3><p>“I found a fun connection game. Try to predict my answers!”</p><div className="share-url">{invitationUrl}</div><button className="button" onClick={async () => { await navigator.clipboard.writeText(invitationUrl); setCopied(true); }}>{copied ? "Copied ✓" : "Copy invitation link"}</button><button className="button secondary" onClick={() => navigator.share?.({ title: "FutariShiru", text: "Try to predict my answers!", url: invitationUrl })}>Open share menu</button></section>
+            <section className="waiting-state" aria-live="polite">
+              <div className="waiting-visual">
+                <img src={profile.world.image} alt="" />
+                <div className="waiting-line">
+                  <i />
+                  <i />
+                  <i />
+                </div>
+                <div className="empty-person">?</div>
+              </div>
+              <p className="eyebrow">WAITING FOR ANSWERS</p>
+              <h2>Waiting for {saved.partner}</h2>
+              <div className="waiting-dots">
+                <i />
+                <i />
+                <i />
+              </div>
+              <p>
+                You can close this page. We will check again automatically when
+                you return.
+              </p>
+            </section>
+            <section className="invite-share">
+              <h3>Share the private invitation</h3>
+              <p>“I found a fun connection game. Try to predict my answers!”</p>
+              <div className="share-url">{invitationUrl}</div>
+              <button
+                className="button"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(invitationUrl);
+                  setCopied(true);
+                }}
+              >
+                {copied ? "Copied ✓" : "Copy invitation link"}
+              </button>
+              <button
+                className="button secondary"
+                onClick={() =>
+                  navigator.share?.({
+                    title: "FutariShiru",
+                    text: "Try to predict my answers!",
+                    url: invitationUrl,
+                  })
+                }
+              >
+                Open share menu
+              </button>
+            </section>
           </>
         )}
-        {!firebaseEnabled && !completed && <button className="button secondary" onClick={simulate}>Demo: receive their answers</button>}
+        {!firebaseEnabled && !completed && (
+          <button className="button secondary" onClick={simulate}>
+            Demo: receive their answers
+          </button>
+        )}
       </div>
     </EnglishShell>
   );
@@ -330,9 +574,23 @@ export function EnglishInvite({ token }: { token: string }) {
 export function EnglishResult({ token }: { token: string }) {
   const [saved, setSaved] = useState<Saved | null>(null);
   const [error, setError] = useState("");
+  const [recoveryCode, setRecoveryCode] = useState("");
+  const [recovering, setRecovering] = useState(false);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [actionMessage, setActionMessage] = useState("");
   useEffect(() => {
     if (firebaseEnabled) {
-      apiJson<Saved>(`/api/sessions/${token}/result`).then((data) => { localStorage.setItem(gameKey(token), JSON.stringify(data)); setSaved(data); }).catch(() => setError("We couldn't load this result. It may still be waiting for the other person's answers."));
+      apiJson<Saved>(`/api/sessions/${token}/result`)
+        .then((data) => {
+          localStorage.setItem(gameKey(token), JSON.stringify(data));
+          setSaved(data);
+        })
+        .catch(() =>
+          setError(
+            "We couldn't load this result. It may still be waiting for the other person's answers.",
+          ),
+        );
     } else {
       const local = localStorage.getItem(gameKey(token));
       if (local) {
@@ -343,42 +601,496 @@ export function EnglishResult({ token }: { token: string }) {
     }
   }, [token]);
 
-  if (!saved) return <EnglishShell><div className="panel"><h1>{error || "Loading your result…"}</h1>{error && <Link className="button secondary" href={path("invite", token)}>Back to invitation</Link>}</div></EnglishShell>;
+  async function recoverReport() {
+    setRecovering(true);
+    setError("");
+    try {
+      const response = await fetch("/api/reports/recover", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token, recoveryCode }),
+      });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(data.error);
+      const restored = await apiJson<Saved>(`/api/sessions/${token}/result`);
+      localStorage.setItem(gameKey(token), JSON.stringify(restored));
+      setSaved(restored);
+      setActionMessage("Your purchased report has been restored.");
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "We couldn't restore this report.",
+      );
+    } finally {
+      setRecovering(false);
+    }
+  }
+
+  async function startCheckout() {
+    setCheckoutBusy(true);
+    setActionMessage("");
+    try {
+      const data = await apiJson<{ url: string }>("/api/checkout", {
+        method: "POST",
+        body: JSON.stringify({ token }),
+      });
+      window.location.href = data.url;
+    } catch {
+      setActionMessage(
+        "Managed Payments is still being prepared. No payment was taken.",
+      );
+      setCheckoutBusy(false);
+    }
+  }
+
+  async function downloadPdf() {
+    setPdfBusy(true);
+    setActionMessage("");
+    try {
+      const response = await apiFetch(`/api/reports/${token}/pdf`);
+      if (!response.ok) {
+        const data = (await response.json()) as { error?: string };
+        throw new Error(data.error);
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const disposition = response.headers.get("content-disposition") || "";
+      link.download =
+        disposition.match(/filename="([^"]+)"/)?.[1] ||
+        "futarishiru-report.pdf";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setActionMessage("Your PDF has been downloaded.");
+    } catch (cause) {
+      setActionMessage(
+        cause instanceof Error
+          ? cause.message
+          : "We couldn't create the PDF. Please try again.",
+      );
+    } finally {
+      setPdfBusy(false);
+    }
+  }
+
+  if (!saved)
+    return (
+      <EnglishShell>
+        <div className="panel">
+          <h1>{error || "Loading your result…"}</h1>
+          {error && (
+            <section className="report-recovery">
+              <p>
+                Purchased this report on another device? Enter the recovery code
+                shown in your PDF or original result page.
+              </p>
+              <div className="field">
+                <label htmlFor="recovery-code">Recovery code</label>
+                <input
+                  id="recovery-code"
+                  value={recoveryCode}
+                  onChange={(event) => setRecoveryCode(event.target.value)}
+                  placeholder="FS-XXXX-XXXX-XXXX-XXXX"
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                />
+              </div>
+              <button
+                className="button"
+                onClick={recoverReport}
+                disabled={recovering || !recoveryCode.trim()}
+              >
+                {recovering ? "Checking code…" : "Restore purchased report"}
+              </button>
+              <Link className="button secondary" href={path("invite", token)}>
+                Back to invitation
+              </Link>
+            </section>
+          )}
+        </div>
+      </EnglishShell>
+    );
   const partnerAnswers = saved.partnerAnswers || randomAnswers();
-  const creatorProfile = englishProfile(saved.answers);
-  const partnerProfile = englishProfile(partnerAnswers);
-  const score = closeness(saved.answers, partnerAnswers, englishQuestions.length);
-  const label = score >= 85 ? "Very close" : score >= 70 ? "Comfortably close" : score >= 50 ? "Different in energizing ways" : "Full of new discoveries";
-  const headline = score >= 85 ? "You naturally see many things the same way" : score >= 70 ? "Grounded in common ground, with room for surprise" : score >= 50 ? "The more you talk, the more your worlds can expand" : "Two perspectives with plenty to discover";
-  const predictionQuestions = englishQuestions.filter((question) => question.prediction);
-  const understanding = (predictions: number[] | undefined, answers: number[]) => Math.round(((predictions || []).reduce((sum, value, index) => sum + (value === answers[englishQuestions.indexOf(predictionQuestions[index])] ? 1 : Math.abs(value - answers[englishQuestions.indexOf(predictionQuestions[index])]) === 1 ? 0.5 : 0), 0) / predictionQuestions.length) * 100);
-  const creatorUnderstanding = understanding(saved.predictions, partnerAnswers);
-  const partnerUnderstanding = understanding(saved.partnerPredictions, saved.answers);
-  const same = englishQuestions.filter((_, index) => saved.answers[index] === partnerAnswers[index]).slice(0, 4);
-  const different = englishQuestions.filter((_, index) => saved.answers[index] !== partnerAnswers[index]).slice(0, 4);
-  const categoryScores = [...new Set(englishQuestions.map((question) => question.category))].map((category) => {
-    const indexes = englishQuestions.map((question, index) => question.category === category ? index : -1).filter((index) => index >= 0);
-    const points = indexes.reduce((sum, index) => sum + (saved.answers[index] === partnerAnswers[index] ? 2 : Math.abs(saved.answers[index] - partnerAnswers[index]) === 1 ? 1 : 0), 0);
-    return { category, score: Math.round((points / (indexes.length * 2)) * 100) };
-  }).sort((a, b) => b.score - a.score);
-  const summary = score >= 85 ? "You tend to value similar things. Keep checking in with words instead of assuming you already know what the other person means." : score >= 70 ? "Your core values feel familiar, while your smaller choices leave room for individuality. Let common ground create safety and turn differences into new things to try." : score >= 50 ? "This pairing becomes more interesting when you ask for the reason behind an answer. Curiosity will bring you closer than guessing what the other person feels." : "Your starting points may differ, which gives each of you a perspective the other may not have. Talk specifically about comfort, space, and how care is best received.";
+  const report = buildEnglishReport({
+    creator: saved.creator,
+    partner: saved.partner,
+    answers: saved.answers,
+    partnerAnswers,
+    predictions: saved.predictions,
+    partnerPredictions: saved.partnerPredictions || [],
+  });
+  const {
+    creatorProfile,
+    partnerProfile,
+    score,
+    label,
+    headline,
+    summary,
+    creatorUnderstanding,
+    partnerUnderstanding,
+    categoryScores,
+  } = report;
+  const same = report.matches.slice(0, 4);
+  const different = report.differences.slice(0, 4);
+  const reportUnlocked = Boolean(saved.paid && saved.accessExpiresAt);
 
   return (
     <EnglishShell>
       <div className="panel" style={{ maxWidth: 820 }}>
-        <div className="result-hero"><p className="eyebrow">YOUR CONNECTION RESULT</p><div className="result-worlds"><span><img src={creatorProfile.world.image} alt="" /><b>{saved.creator} · {creatorProfile.style.name}</b></span><span><img src={partnerProfile.world.image} alt="" /><b>{saved.partner} · {partnerProfile.style.name}</b></span></div><h1>{headline}</h1><p>Values alignment <strong>{label}</strong></p></div>
-        <div className="stat-grid"><div className="stat">Values alignment<strong>{score}%</strong>{label}</div><div className="stat">Prediction accuracy<strong>{creatorUnderstanding}%</strong>{saved.creator} → {saved.partner}</div><div className="stat">Prediction accuracy<strong>{partnerUnderstanding}%</strong>{saved.partner} → {saved.creator}</div><div className="stat">Connection styles<strong>{creatorProfile.style.name} × {partnerProfile.style.name}</strong>Differences can start a conversation</div></div>
-        <section className="personality-comparison"><p className="eyebrow">PERSONALITY DIMENSIONS</p><h2>How each of you connects</h2><div className="personality-cards">{[{ name: saved.creator, profile: creatorProfile }, { name: saved.partner, profile: partnerProfile }].map(({ name, profile }) => <article key={name}><div className="personality-card-head"><img src={profile.world.image} alt="" /><div><small>{name}</small><h3>{profile.style.name}</h3></div></div><p>{profile.style.tagline}</p><div className="trait-tags">{profile.axes.map((axis) => <span key={axis.key}>{axis.shortLabel}</span>)}</div><p className="personality-evidence">Choosing “{profile.evidence[0].answer}” suggests that {profile.evidence[0].insight.toLowerCase()}</p></article>)}</div><div className="axis-comparison-list">{creatorProfile.axes.map((creatorAxis) => { const partnerAxis = partnerProfile.axes.find((axis) => axis.key === creatorAxis.key)!; const copy = englishAxes[creatorAxis.key]; return <div className="axis-comparison" key={creatorAxis.key}><header><b>{copy.name}</b><span>{creatorAxis.shortLabel} / {partnerAxis.shortLabel}</span></header><div className="axis-poles"><small>{copy.negative}</small><small>{copy.positive}</small></div><div className="axis-track"><i className="creator-dot" title={`${saved.creator}: ${creatorAxis.label}`} style={{ left: `${(creatorAxis.position + 100) / 2}%` }} /><i className="partner-dot" title={`${saved.partner}: ${partnerAxis.label}`} style={{ left: `${(partnerAxis.position + 100) / 2}%` }} /></div></div>; })}</div></section>
-        <section className="relationship-reading"><p className="eyebrow">YOUR RELATIONSHIP</p><h2>What makes this pairing yours</h2><p>{summary}</p><div className="category-bars">{categoryScores.slice(0, 4).map(({ category, score: categoryScore }) => <div key={category}><span>{category}</span><i><b style={{ width: `${categoryScore}%` }} /></i><strong>{categoryScore}%</strong></div>)}</div><p className="category-note">You were closest in <b>{categoryScores[0].category}</b>. Your answers in <b>{categoryScores.at(-1)?.category}</b> could lead to the most interesting conversation.</p></section>
-        <div className="detail-grid"><section className="detail"><h3>Where you matched</h3><ul>{same.map((question) => { const index = englishQuestions.indexOf(question); return <li key={question.id}><b>{question.question}</b><br />You both chose “{optionLabel(question, saved.answers[index])}”</li>; })}</ul></section><section className="detail"><h3>Meaningful differences</h3><ul>{different.map((question) => { const index = englishQuestions.indexOf(question); return <li key={question.id}>{saved.creator}: “{optionLabel(question, saved.answers[index])}”<br />{saved.partner}: “{optionLabel(question, partnerAnswers[index])}”</li>; })}</ul></section><section className="detail"><h3>Questions to keep talking</h3><ul><li>If you could design your ideal free day, what would it look like?</li><li>When do you feel most cared for?</li><li>What is one new thing you would like to try together?</li></ul></section><section className="detail"><h3>Remember</h3><p>A lower match is not a worse result. It simply shows where asking “why?” may teach you something new.</p></section></div>
-        <section className="premium-lock"><span className="lock-mark">＋</span><p className="eyebrow">FULL REPORT</p><h2>Go one step deeper.</h2><p>The $4.99 full report will include all 24 answer comparisons, your relationship playbook, eight-category analysis, and a seven-day action plan.</p><div className="premium-features"><span>Relationship playbook</span><span>8-category analysis</span><span>All 24 answers</span><span>7-day action plan</span></div><div className="price"><strong>$4.99 USD</strong><small>One-time purchase · No subscription</small></div><button className="button premium-button" disabled>Managed Payments checkout coming soon</button></section>
-        <Link className="button secondary" href="/en">Back to FutariShiru</Link>
-        <p className="notice">This result is for entertainment and conversation. It is not a psychological or medical diagnosis, and it does not judge the quality of your relationship.</p>
+        <div className="result-hero">
+          <p className="eyebrow">YOUR CONNECTION RESULT</p>
+          <div className="result-worlds">
+            <span>
+              <img src={creatorProfile.world.image} alt="" />
+              <b>
+                {saved.creator} · {creatorProfile.style.name}
+              </b>
+            </span>
+            <span>
+              <img src={partnerProfile.world.image} alt="" />
+              <b>
+                {saved.partner} · {partnerProfile.style.name}
+              </b>
+            </span>
+          </div>
+          <h1>{headline}</h1>
+          <p>
+            Values alignment <strong>{label}</strong>
+          </p>
+        </div>
+        <div className="stat-grid">
+          <div className="stat">
+            Values alignment<strong>{score}%</strong>
+            {label}
+          </div>
+          <div className="stat">
+            Prediction accuracy<strong>{creatorUnderstanding}%</strong>
+            {saved.creator} → {saved.partner}
+          </div>
+          <div className="stat">
+            Prediction accuracy<strong>{partnerUnderstanding}%</strong>
+            {saved.partner} → {saved.creator}
+          </div>
+          <div className="stat">
+            Connection styles
+            <strong>
+              {creatorProfile.style.name} × {partnerProfile.style.name}
+            </strong>
+            Differences can start a conversation
+          </div>
+        </div>
+        <section className="personality-comparison">
+          <p className="eyebrow">PERSONALITY DIMENSIONS</p>
+          <h2>How each of you connects</h2>
+          <div className="personality-cards">
+            {[
+              { name: saved.creator, profile: creatorProfile },
+              { name: saved.partner, profile: partnerProfile },
+            ].map(({ name, profile }) => (
+              <article key={name}>
+                <div className="personality-card-head">
+                  <img src={profile.world.image} alt="" />
+                  <div>
+                    <small>{name}</small>
+                    <h3>{profile.style.name}</h3>
+                  </div>
+                </div>
+                <p>{profile.style.tagline}</p>
+                <div className="trait-tags">
+                  {profile.axes.map((axis) => (
+                    <span key={axis.key}>{axis.shortLabel}</span>
+                  ))}
+                </div>
+                <p className="personality-evidence">
+                  Choosing “{profile.evidence[0].answer}” suggests that{" "}
+                  {profile.evidence[0].insight.toLowerCase()}
+                </p>
+              </article>
+            ))}
+          </div>
+          <div className="axis-comparison-list">
+            {creatorProfile.axes.map((creatorAxis) => {
+              const partnerAxis = partnerProfile.axes.find(
+                (axis) => axis.key === creatorAxis.key,
+              )!;
+              const copy = englishAxes[creatorAxis.key];
+              return (
+                <div className="axis-comparison" key={creatorAxis.key}>
+                  <header>
+                    <b>{copy.name}</b>
+                    <span>
+                      {creatorAxis.shortLabel} / {partnerAxis.shortLabel}
+                    </span>
+                  </header>
+                  <div className="axis-poles">
+                    <small>{copy.negative}</small>
+                    <small>{copy.positive}</small>
+                  </div>
+                  <div className="axis-track">
+                    <i
+                      className="creator-dot"
+                      title={`${saved.creator}: ${creatorAxis.label}`}
+                      style={{ left: `${(creatorAxis.position + 100) / 2}%` }}
+                    />
+                    <i
+                      className="partner-dot"
+                      title={`${saved.partner}: ${partnerAxis.label}`}
+                      style={{ left: `${(partnerAxis.position + 100) / 2}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+        <section className="relationship-reading">
+          <p className="eyebrow">YOUR RELATIONSHIP</p>
+          <h2>What makes this pairing yours</h2>
+          <p>{summary}</p>
+          <div className="category-bars">
+            {categoryScores
+              .slice(0, 4)
+              .map(({ category, score: categoryScore }) => (
+                <div key={category}>
+                  <span>{category}</span>
+                  <i>
+                    <b style={{ width: `${categoryScore}%` }} />
+                  </i>
+                  <strong>{categoryScore}%</strong>
+                </div>
+              ))}
+          </div>
+          <p className="category-note">
+            You were closest in <b>{categoryScores[0].category}</b>. Your
+            answers in <b>{categoryScores.at(-1)?.category}</b> could lead to
+            the most interesting conversation.
+          </p>
+        </section>
+        <div className="detail-grid">
+          <section className="detail">
+            <h3>Where you matched</h3>
+            <ul>
+              {same.map((item) => (
+                <li key={item.id}>
+                  <b>{item.question}</b>
+                  <br />
+                  You both chose “{item.creatorAnswer}”
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section className="detail">
+            <h3>Meaningful differences</h3>
+            <ul>
+              {different.map((item) => (
+                <li key={item.id}>
+                  {saved.creator}: “{item.creatorAnswer}”<br />
+                  {saved.partner}: “{item.partnerAnswer}”
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section className="detail">
+            <h3>Questions to keep talking</h3>
+            <ul>
+              <li>
+                If you could design your ideal free day, what would it look
+                like?
+              </li>
+              <li>When do you feel most cared for?</li>
+              <li>What is one new thing you would like to try together?</li>
+            </ul>
+          </section>
+          <section className="detail">
+            <h3>Remember</h3>
+            <p>
+              A lower match is not a worse result. It simply shows where asking
+              “why?” may teach you something new.
+            </p>
+          </section>
+        </div>
+        {actionMessage && (
+          <p className="payment-message" aria-live="polite">
+            {actionMessage}
+          </p>
+        )}
+        {reportUnlocked ? (
+          <section className="premium-report">
+            <header className="premium-header">
+              <div>
+                <p className="eyebrow">FULL REPORT</p>
+                <h2>Your complete connection report</h2>
+                <p>Built from all 24 answers and both sets of predictions.</p>
+              </div>
+              <span>Unlocked</span>
+            </header>
+
+            <section className="premium-section report-access-card">
+              <div>
+                <h3>Keep your report</h3>
+                <p>
+                  Web access is available through{" "}
+                  <b>
+                    {new Date(saved.accessExpiresAt!).toLocaleDateString(
+                      "en-US",
+                      { year: "numeric", month: "long", day: "numeric" },
+                    )}
+                  </b>
+                  . Downloading the PDF gives you a permanent offline copy.
+                </p>
+              </div>
+              <button
+                className="button"
+                onClick={downloadPdf}
+                disabled={pdfBusy}
+              >
+                {pdfBusy ? "Creating PDF…" : "Download private PDF ↓"}
+              </button>
+              {saved.recoveryCode && (
+                <div className="recovery-code-box">
+                  <small>REPORT RECOVERY CODE</small>
+                  <strong>{saved.recoveryCode}</strong>
+                  <p>
+                    Save this code privately. Anyone with the result URL and
+                    this code can open the purchased report.
+                  </p>
+                </div>
+              )}
+            </section>
+
+            <section className="premium-section">
+              <h3>Your relationship playbook</h3>
+              <div className="manual-grid">
+                {report.playbook.map((item) => (
+                  <article key={item.title}>
+                    <h4>{item.title}</h4>
+                    <p>{item.text}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="premium-section">
+              <h3>Alignment across all 8 topics</h3>
+              <div className="category-bars premium-bars">
+                {report.categoryScores.map(({ category, score: itemScore }) => (
+                  <div key={category}>
+                    <span>{category}</span>
+                    <i>
+                      <b style={{ width: `${itemScore}%` }} />
+                    </i>
+                    <strong>{itemScore}%</strong>
+                  </div>
+                ))}
+              </div>
+              <p className="premium-insight">
+                Lower alignment in <b>{report.lowestCategory}</b> is not a
+                weakness. It is a useful place to ask what matters behind each
+                choice and turn a difference into a shared decision.
+              </p>
+            </section>
+
+            <section className="premium-section">
+              <h3>All 24 answers, side by side</h3>
+              <div className="all-answers">
+                {report.comparison.map((item) => (
+                  <article key={item.id}>
+                    <div>
+                      <small>{item.category}</small>
+                      <h4>{item.question}</h4>
+                    </div>
+                    <p>
+                      <b>{saved.creator}</b>
+                      {item.creatorAnswer}
+                    </p>
+                    <p>
+                      <b>{saved.partner}</b>
+                      {item.partnerAnswer}
+                    </p>
+                    <span className={item.same ? "same" : ""}>
+                      {item.same ? "Shared answer" : "A difference to explore"}
+                    </span>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="premium-section action-plan">
+              <p className="eyebrow">NEXT 7 DAYS</p>
+              <h3>Three small actions for the two of you</h3>
+              <ol>
+                {report.actions.map((action) => (
+                  <li key={action}>{action}</li>
+                ))}
+              </ol>
+            </section>
+          </section>
+        ) : (
+          <section className="premium-lock">
+            <span className="lock-mark">＋</span>
+            <p className="eyebrow">FULL REPORT</p>
+            <h2>Go one step deeper.</h2>
+            <p>
+              The $4.99 full report includes all 24 answer comparisons, your
+              relationship playbook, eight-category analysis, a seven-day action
+              plan, and a downloadable PDF.
+            </p>
+            <div className="premium-features">
+              <span>Relationship playbook</span>
+              <span>8-category analysis</span>
+              <span>All 24 answers</span>
+              <span>7-day action plan</span>
+              <span>Private PDF copy</span>
+              <span>12 months of web access</span>
+            </div>
+            <div className="price">
+              <strong>$4.99 USD</strong>
+              <small>One-time purchase · No subscription</small>
+            </div>
+            <button
+              className="button premium-button"
+              onClick={startCheckout}
+              disabled={!englishCheckoutEnabled || checkoutBusy}
+            >
+              {checkoutBusy
+                ? "Preparing secure checkout…"
+                : englishCheckoutEnabled
+                  ? "Unlock the full report →"
+                  : "Managed Payments review in progress"}
+            </button>
+            <p className="purchase-terms">
+              Checkout will be enabled after Stripe confirms Managed Payments
+              product eligibility. No payment can be submitted yet.
+            </p>
+          </section>
+        )}
+        <Link className="button secondary" href="/en">
+          Back to FutariShiru
+        </Link>
+        <p className="notice">
+          This result is for entertainment and conversation. It is not a
+          psychological or medical diagnosis, and it does not judge the quality
+          of your relationship.
+        </p>
       </div>
     </EnglishShell>
   );
 }
 
 function EnglishShell({ children }: { children: React.ReactNode }) {
-  return <main className="app-shell" lang="en"><nav className="app-nav"><Link className="brand" href="/en"><i>ふ</i> FutariShiru</Link><span className="question-meta">No sign-up · About 5 minutes</span></nav>{children}</main>;
+  return (
+    <main className="app-shell" lang="en">
+      <nav className="app-nav">
+        <Link className="brand" href="/en">
+          <i>ふ</i> FutariShiru
+        </Link>
+        <span className="question-meta">No sign-up · About 5 minutes</span>
+      </nav>
+      {children}
+    </main>
+  );
 }
