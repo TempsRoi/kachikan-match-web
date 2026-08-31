@@ -1,15 +1,13 @@
 import Link from "next/link";
 import type { Locale } from "@/lib/locales";
 import { marketingContent } from "@/lib/marketing-content";
+import { absoluteSiteUrl, SITE_ORIGIN } from "@/lib/site";
 
 const stepImages = ["answer", "invite", "result"];
 
 export function MarketingHome({ locale }: { locale: Locale }) {
   const content = marketingContent[locale];
-  const siteUrl =
-    locale === "en"
-      ? "https://playfutarishiru.com/en"
-      : "https://www.kachikanmatch.jp/";
+  const siteUrl = locale === "en" ? absoluteSiteUrl("/en") : SITE_ORIGIN;
   const structuredData = {
     "@context": "https://schema.org",
     "@graph": [

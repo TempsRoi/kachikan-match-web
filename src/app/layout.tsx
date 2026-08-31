@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
+import { SITE_ORIGIN } from "@/lib/site";
 import "./globals.css";
 
-const siteUrl = "https://www.kachikanmatch.jp";
-
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(SITE_ORIGIN),
   title: {
     default:
       "フタリシル公式（ふたりしる / FUTARISHIRU）｜ふたりで遊ぶ価値観ゲーム",
@@ -29,7 +28,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "ja_JP",
-    url: siteUrl,
+    url: SITE_ORIGIN,
     siteName: "フタリシル（ふたりしる）",
     title:
       "フタリシル公式（ふたりしる / FUTARISHIRU）｜あなたは、相手をどれだけ知っていますか？",

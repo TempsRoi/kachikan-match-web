@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import { z } from "zod";
 import { adminDb, authenticatedUid } from "@/lib/firebase-admin";
 import { grantReportAccess } from "@/lib/report-access";
+import { SITE_ORIGIN } from "@/lib/site";
 
 const schema = z.object({ token: z.string().min(20).max(128) });
 
@@ -71,7 +72,10 @@ export async function POST(request: Request) {
       );
 
     const stripe = new Stripe(secretKey);
-    const origin = new URL(request.url).origin;
+    const origin =
+      process.env.NODE_ENV === "production"
+        ? SITE_ORIGIN
+        : new URL(request.url).origin;
     const priceId = process.env.STRIPE_PRICE_ID;
     const checkout = await stripe.checkout.sessions.create({
       mode: "payment",

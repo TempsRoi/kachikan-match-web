@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { MarketingHome } from "@/components/MarketingHome";
+import { absoluteSiteUrl, SITE_ORIGIN } from "@/lib/site";
+
+const englishHomeUrl = absoluteSiteUrl("/en");
 
 export const metadata: Metadata = {
   title: "FutariShiru | How well do you really know each other?",
@@ -14,16 +17,16 @@ export const metadata: Metadata = {
     "best friend quiz",
   ],
   alternates: {
-    canonical: "https://playfutarishiru.com/en",
+    canonical: englishHomeUrl,
     languages: {
-      ja: "https://www.kachikanmatch.jp/",
-      en: "https://playfutarishiru.com/en",
+      ja: SITE_ORIGIN,
+      en: englishHomeUrl,
     },
   },
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://playfutarishiru.com/en",
+    url: englishHomeUrl,
     siteName: "FutariShiru",
     title: "FutariShiru | How well do you really know each other?",
     description:
@@ -44,7 +47,6 @@ export const metadata: Metadata = {
       "Guess each other’s answers and discover how well you really know each other.",
     images: ["/og.png"],
   },
-  robots: { index: false, follow: false },
 };
 
 export default function EnglishHome() {

@@ -25,7 +25,7 @@ Excel版を生成する際の原本として、決定事項・担当・進捗を
 | P0-08 | 海外版ブランド名を確定                        | 共同     | 完了       | FutariShiru                                                                             |
 | P0-09 | 英語タグラインを確定                          | 共同     | 完了       | Guess their answers. Discover how well you really know each other.                      |
 | P0-10 | .comドメイン候補を確定                        | ユーザー | 完了       | playfutarishiru.com                                                                     |
-| P0-11 | playfutarishiru.comを取得                     | ユーザー | 完了       | 取得済み。DNS・Vercel接続は英語版公開準備で実施                                         |
+| P0-11 | playfutarishiru.comを取得・接続                | 共同     | 対応中     | 取得済み。アプリ内の正式URLは移行済み。Vercelへの追加、DNS変更、SSL確認が残作業           |
 | P0-12 | SNSアカウント方針を確定                       | 共同     | 完了       | 現行のX・Instagram・TikTokを流用                                                        |
 | P0-13 | Product Hunt等のアカウントを登録              | ユーザー | 待ち       | ローンチ準備フェーズで実施                                                              |
 | P0-14 | FutariShiruの簡易商標競合調査                 | Codex    | 完了       | 一般Web検索では完全一致の明確な競合を確認できず。公式DBと専門家による最終確認は別途必要 |

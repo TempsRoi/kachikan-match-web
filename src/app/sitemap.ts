@@ -1,37 +1,43 @@
 import type { MetadataRoute } from "next";
-
-const baseUrl = "https://www.kachikanmatch.jp";
+import { absoluteSiteUrl, SITE_ORIGIN } from "@/lib/site";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const legalLastModified = new Date("2026-08-12");
   return [
     {
-      url: baseUrl,
-      lastModified: new Date("2026-08-30"),
+      url: SITE_ORIGIN,
+      lastModified: new Date("2026-08-31"),
       changeFrequency: "weekly",
       priority: 1,
-      images: [`${baseUrl}/og.png`],
+      images: [absoluteSiteUrl("/og.png")],
     },
     {
-      url: `${baseUrl}/commerce`,
+      url: absoluteSiteUrl("/en"),
+      lastModified: new Date("2026-08-31"),
+      changeFrequency: "weekly",
+      priority: 0.9,
+      images: [absoluteSiteUrl("/og.png")],
+    },
+    {
+      url: absoluteSiteUrl("/commerce"),
       lastModified: legalLastModified,
       changeFrequency: "yearly",
       priority: 0.2,
     },
     {
-      url: `${baseUrl}/terms`,
+      url: absoluteSiteUrl("/terms"),
       lastModified: legalLastModified,
       changeFrequency: "yearly",
       priority: 0.2,
     },
     {
-      url: `${baseUrl}/privacy`,
+      url: absoluteSiteUrl("/privacy"),
       lastModified: legalLastModified,
       changeFrequency: "yearly",
       priority: 0.2,
     },
     {
-      url: `${baseUrl}/contact`,
+      url: absoluteSiteUrl("/contact"),
       lastModified: legalLastModified,
       changeFrequency: "yearly",
       priority: 0.2,
