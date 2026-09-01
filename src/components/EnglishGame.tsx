@@ -581,14 +581,37 @@ export function EnglishResult({ token }: { token: string }) {
   const [actionMessage, setActionMessage] = useState("");
   useEffect(() => {
     if (firebaseEnabled) {
-      apiJson<Saved>(`/api/sessions/${token}/result`)
+      const loadResult = async () => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("checkout") === "success" && params.get("session_id")) {
+          setActionMessage("Confirming your payment…");
+          await apiJson<{ paid: boolean }>("/api/checkout/confirm", {
+            method: "POST",
+            body: JSON.stringify({ sessionId: params.get("session_id") }),
+          });
+          setActionMessage(
+            "Payment confirmed. Your full report is now unlocked.",
+          );
+          window.history.replaceState({}, "", path("result", token));
+        } else if (params.get("checkout") === "cancelled") {
+          setActionMessage(
+            "Checkout was cancelled. You have not been charged.",
+          );
+          window.history.replaceState({}, "", path("result", token));
+        }
+        return apiJson<Saved>(`/api/sessions/${token}/result`);
+      };
+
+      loadResult()
         .then((data) => {
           localStorage.setItem(gameKey(token), JSON.stringify(data));
           setSaved(data);
         })
-        .catch(() =>
+        .catch((cause) =>
           setError(
-            "We couldn't load this result. It may still be waiting for the other person's answers.",
+            cause instanceof Error
+              ? cause.message
+              : "We couldn't load this result. It may still be waiting for the other person's answers.",
           ),
         );
     } else {
@@ -636,9 +659,11 @@ export function EnglishResult({ token }: { token: string }) {
         body: JSON.stringify({ token }),
       });
       window.location.href = data.url;
-    } catch {
+    } catch (cause) {
       setActionMessage(
-        "Managed Payments is still being prepared. No payment was taken.",
+        cause instanceof Error
+          ? cause.message
+          : "We couldn't start secure checkout. No payment was taken.",
       );
       setCheckoutBusy(false);
     }
@@ -1060,11 +1085,12 @@ export function EnglishResult({ token }: { token: string }) {
                 ? "Preparing secure checkout…"
                 : englishCheckoutEnabled
                   ? "Unlock the full report →"
-                  : "Managed Payments review in progress"}
+                  : "Secure checkout unavailable"}
             </button>
             <p className="purchase-terms">
-              Checkout will be enabled after Stripe confirms Managed Payments
-              product eligibility. No payment can be submitted yet.
+              {englishCheckoutEnabled
+                ? "Secure one-time checkout is provided by Link. Applicable tax is calculated at checkout."
+                : "Managed Payments checkout is disabled in this environment."}
             </p>
           </section>
         )}

@@ -1,6 +1,6 @@
 # FutariShiru 海外版 TODO
 
-更新日: 2026-08-30
+更新日: 2026-09-01
 
 Excel版を生成する際の原本として、決定事項・担当・進捗をここで管理する。
 
@@ -25,7 +25,7 @@ Excel版を生成する際の原本として、決定事項・担当・進捗を
 | P0-08 | 海外版ブランド名を確定                        | 共同     | 完了       | FutariShiru                                                                             |
 | P0-09 | 英語タグラインを確定                          | 共同     | 完了       | Guess their answers. Discover how well you really know each other.                      |
 | P0-10 | .comドメイン候補を確定                        | ユーザー | 完了       | playfutarishiru.com                                                                     |
-| P0-11 | playfutarishiru.comを取得・接続                | 共同     | 対応中     | 取得済み。アプリ内の正式URLは移行済み。Vercelへの追加、DNS変更、SSL確認が残作業           |
+| P0-11 | playfutarishiru.comを取得・接続                | 共同     | 完了       | Vercel接続、DNS変更、SSL、正式URL移行、旧ドメイン転送を確認済み                          |
 | P0-12 | SNSアカウント方針を確定                       | 共同     | 完了       | 現行のX・Instagram・TikTokを流用                                                        |
 | P0-13 | Product Hunt等のアカウントを登録              | ユーザー | 待ち       | ローンチ準備フェーズで実施                                                              |
 | P0-14 | FutariShiruの簡易商標競合調査                 | Codex    | 完了       | 一般Web検索では完全一致の明確な競合を確認できず。公式DBと専門家による最終確認は別途必要 |
@@ -51,8 +51,8 @@ Excel版を生成する際の原本として、決定事項・担当・進捗を
 | P1-12 | 有料結果の12カ月閲覧を実装       | Codex    | 完了       | 決済時点から12カ月固定。Webhook再送で期限を延長しない          |
 | P1-13 | Firestore TTL・完全削除を実装    | Codex    | 未着手     | サブコレクションを含めて削除                                  |
 | P1-14 | ユーザー操作による削除を実装     | Codex    | 未着手     | 2人への影響を事前表示                                         |
-| P1-15 | 海外MoR決済を実装                | Codex    | 進行中     | 権限付与境界まで実装。Stripe専門チームの商品適格性回答待ち     |
-| P1-16 | USD 4.99商品を設定               | ユーザー | 待ち       | MoR確定後、Codexが手順を案内                                  |
+| P1-15 | 海外MoR決済を実装                | Codex    | 進行中     | Managed Payments Checkout・決済確認・権限付与を実装。テスト決済が残作業 |
+| P1-16 | USD 4.99商品を設定               | ユーザー | 完了       | テストモードで一回払いPriceを作成済み                         |
 | P1-17 | Product Hunt 30%割引を実装       | Codex    | 待ち       | MoRとクーポン仕様確定後                                       |
 | P1-18 | 英語Termsを作成                  | Codex    | 未着手     | 事業者情報と専門家レビュー前の草案                            |
 | P1-19 | 英語Privacy Policyを作成         | Codex    | 未着手     | 処理者・移転・保存期間・権利を明記                            |

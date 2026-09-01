@@ -58,12 +58,6 @@ export async function POST(request: Request) {
       });
     }
 
-    if (sessionData.locale === "en")
-      return NextResponse.json(
-        { error: "Managed Payments checkout is not configured yet." },
-        { status: 503 },
-      );
-
     const secretKey = process.env.STRIPE_SECRET_KEY;
     if (!secretKey)
       return NextResponse.json(
@@ -76,31 +70,57 @@ export async function POST(request: Request) {
       process.env.NODE_ENV === "production"
         ? SITE_ORIGIN
         : new URL(request.url).origin;
-    const priceId = process.env.STRIPE_PRICE_ID;
-    const checkout = await stripe.checkout.sessions.create({
-      mode: "payment",
-      client_reference_id: sessionId,
-      payment_method_types: ["card"],
-      line_items: [
-        priceId
-          ? { price: priceId, quantity: 1 }
-          : {
-              price_data: {
-                currency: "jpy",
-                unit_amount: 480,
-                product_data: { name: "フタリシル 詳細レポート" },
-              },
-              quantity: 1,
-            },
-      ],
-      success_url: `${origin}/result/${token}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/result/${token}?checkout=cancelled`,
-      locale: "ja",
-      metadata: { publicToken: token, sessionId, purchaserUserId: uid },
-      payment_intent_data: {
-        metadata: { publicToken: token, sessionId, purchaserUserId: uid },
-      },
-    });
+    const isEnglish = sessionData.locale === "en";
+    const metadata = { publicToken: token, sessionId, purchaserUserId: uid };
+    const englishCheckoutEnabled =
+      process.env.NEXT_PUBLIC_ENGLISH_CHECKOUT_ENABLED === "true";
+    if (isEnglish && !englishCheckoutEnabled)
+      return NextResponse.json(
+        { error: "Managed Payments checkout is disabled." },
+        { status: 503 },
+      );
+    const managedPriceId = process.env.STRIPE_MANAGED_PRICE_ID_USD?.trim();
+    if (isEnglish && !managedPriceId)
+      return NextResponse.json(
+        { error: "Managed Payments price is not configured." },
+        { status: 503 },
+      );
+
+    const standardPriceId = process.env.STRIPE_PRICE_ID?.trim();
+    const checkout = isEnglish
+      ? await stripe.checkout.sessions.create({
+          mode: "payment",
+          client_reference_id: sessionId,
+          managed_payments: { enabled: true },
+          line_items: [{ price: managedPriceId!, quantity: 1 }],
+          success_url: `${origin}${resultPath}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${origin}${resultPath}?checkout=cancelled`,
+          locale: "en",
+          metadata,
+          payment_intent_data: { metadata },
+        })
+      : await stripe.checkout.sessions.create({
+          mode: "payment",
+          client_reference_id: sessionId,
+          payment_method_types: ["card"],
+          line_items: [
+            standardPriceId
+              ? { price: standardPriceId, quantity: 1 }
+              : {
+                  price_data: {
+                    currency: "jpy",
+                    unit_amount: 480,
+                    product_data: { name: "フタリシル 詳細レポート" },
+                  },
+                  quantity: 1,
+                },
+          ],
+          success_url: `${origin}${resultPath}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${origin}${resultPath}?checkout=cancelled`,
+          locale: "ja",
+          metadata,
+          payment_intent_data: { metadata },
+        });
 
     await db.collection("payments").doc(checkout.id).set({
       sessionId,
@@ -108,8 +128,10 @@ export async function POST(request: Request) {
       purchaserUserId: uid,
       stripeCheckoutSessionId: checkout.id,
       stripePaymentIntentId: null,
-      amount: 480,
-      currency: "jpy",
+      amount: checkout.amount_total ?? (isEnglish ? 499 : 480),
+      currency: checkout.currency ?? (isEnglish ? "usd" : "jpy"),
+      locale: isEnglish ? "en" : "ja",
+      managedPayments: isEnglish,
       status: "pending",
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
