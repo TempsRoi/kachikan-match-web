@@ -5,12 +5,16 @@ import { z } from "zod";
 import { adminDb, authenticatedUid } from "@/lib/firebase-admin";
 import { grantReportAccess } from "@/lib/report-access";
 
-const schema = z.object({ sessionId: z.string().startsWith("cs_") });
+const schema = z.object({
+  sessionId: z.string().startsWith("cs_"),
+  locale: z.enum(["ja", "en"]).optional(),
+});
 
 export async function POST(request: Request) {
   const uid = await authenticatedUid(request);
   const db = adminDb();
   const secretKey = process.env.STRIPE_SECRET_KEY;
+  let requestedLocale: "ja" | "en" = "ja";
   if (!uid)
     return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
   if (!db || !secretKey)
@@ -19,7 +23,11 @@ export async function POST(request: Request) {
       { status: 503 },
     );
   try {
-    const { sessionId: checkoutId } = schema.parse(await request.json());
+    const {
+      sessionId: checkoutId,
+      locale = "ja",
+    } = schema.parse(await request.json());
+    requestedLocale = locale;
     const stripe = new Stripe(secretKey);
     const checkout = await stripe.checkout.sessions.retrieve(checkoutId);
     const sessionId = checkout.metadata?.sessionId;
@@ -30,7 +38,12 @@ export async function POST(request: Request) {
       purchaserUserId !== uid
     )
       return NextResponse.json(
-        { error: "支払いを確認できませんでした" },
+        {
+          error:
+            locale === "en"
+              ? "We couldn't verify your payment."
+              : "支払いを確認できませんでした",
+        },
         { status: 409 },
       );
     const paymentSnap = await db.collection("payments").doc(checkout.id).get();
@@ -60,7 +73,12 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Checkout confirmation failed", error);
     return NextResponse.json(
-      { error: "支払いを確認できませんでした" },
+      {
+        error:
+          requestedLocale === "en"
+            ? "We couldn't verify your payment."
+            : "支払いを確認できませんでした",
+      },
       { status: 400 },
     );
   }

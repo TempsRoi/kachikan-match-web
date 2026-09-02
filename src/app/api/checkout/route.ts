@@ -66,8 +66,11 @@ export async function POST(request: Request) {
       );
 
     const stripe = new Stripe(secretKey);
+    // Vercel Preview builds also run with NODE_ENV=production. Only force the
+    // canonical domain for an actual Production deployment so Checkout can
+    // return to the branch URL used to start a test payment.
     const origin =
-      process.env.NODE_ENV === "production"
+      process.env.VERCEL_ENV === "production"
         ? SITE_ORIGIN
         : new URL(request.url).origin;
     const isEnglish = sessionData.locale === "en";

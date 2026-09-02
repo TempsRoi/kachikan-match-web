@@ -587,7 +587,10 @@ export function EnglishResult({ token }: { token: string }) {
           setActionMessage("Confirming your payment…");
           await apiJson<{ paid: boolean }>("/api/checkout/confirm", {
             method: "POST",
-            body: JSON.stringify({ sessionId: params.get("session_id") }),
+            body: JSON.stringify({
+              sessionId: params.get("session_id"),
+              locale: "en",
+            }),
           });
           setActionMessage(
             "Payment confirmed. Your full report is now unlocked.",
