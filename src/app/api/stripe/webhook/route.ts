@@ -27,7 +27,10 @@ export async function POST(request: Request) {
         { status: 503 },
       );
 
-    if (event.type === "checkout.session.completed") {
+    if (
+      event.type === "checkout.session.completed" ||
+      event.type === "checkout.session.async_payment_succeeded"
+    ) {
       const checkout = event.data.object;
       if (checkout.payment_status !== "paid")
         return NextResponse.json({ received: true });
@@ -69,7 +72,10 @@ export async function POST(request: Request) {
         );
     }
 
-    if (event.type === "checkout.session.expired") {
+    if (
+      event.type === "checkout.session.expired" ||
+      event.type === "checkout.session.async_payment_failed"
+    ) {
       await db
         .collection("payments")
         .doc(event.data.object.id)
