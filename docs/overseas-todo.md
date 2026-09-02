@@ -52,7 +52,7 @@ Excel版を生成する際の原本として、決定事項・担当・進捗を
 | P1-13 | Firestore TTL・完全削除を実装    | Codex    | 未着手     | サブコレクションを含めて削除                                  |
 | P1-14 | ユーザー操作による削除を実装     | Codex    | 未着手     | 2人への影響を事前表示                                         |
 | P1-15 | 海外MoR決済を実装                | Codex    | 進行中     | Managed Payments Checkout・決済確認・権限付与を実装。Previewでテスト決済成功済み |
-| P1-16 | USD 4.99商品を設定               | ユーザー | 完了       | テストモードで一回払いPriceを作成し、決済成功を確認済み       |
+| P1-16 | USD 4.99商品を設定               | ユーザー | 完了       | テスト・本番モードで一回払い商品を作成済み。テスト決済成功済み |
 | P1-17 | Product Hunt 30%割引を実装       | Codex    | 待ち       | MoRとクーポン仕様確定後                                       |
 | P1-18 | 英語Termsを作成                  | Codex    | 未着手     | 事業者情報と専門家レビュー前の草案                            |
 | P1-19 | 英語Privacy Policyを作成         | Codex    | 未着手     | 処理者・移転・保存期間・権利を明記                            |
@@ -61,8 +61,8 @@ Excel版を生成する際の原本として、決定事項・担当・進捗を
 | P1-22 | Cookie同意管理を実装             | Codex    | 未着手     | 非必須計測は同意後のみ                                        |
 | P1-23 | ファネルイベント計測を実装       | Codex    | 未着手     | 回答・氏名・トークンを送信しない                              |
 | P1-24 | セキュリティ・不正利用対策       | Codex    | 進行中     | 決済権限の冪等化・署名復旧を実装。App Check・rate limitが残作業 |
-| P1-25 | 本番Managed Payments環境変数を設定 | ユーザー | 待ち       | Live modeのSecret Key・USD 4.99 Price ID・有効化フラグをProductionだけに設定 |
-| P1-26 | 本番Stripe Webhookを登録・検証   | 共同     | 待ち       | 本番URLを登録し、署名Secretを設定。即時・遅延決済イベントを確認 |
+| P1-25 | 本番Managed Payments環境変数を設定 | ユーザー | 完了       | Live modeの商品作成およびSecret Key・Price ID・有効化フラグのProduction登録済み |
+| P1-26 | 本番Stripe Webhookを登録・検証   | 共同     | 進行中     | 本番URLと4イベントを登録済み。既存配信は200 OK。本番購入で最終検証する |
 
 ## P2: 品質・公開準備
 
