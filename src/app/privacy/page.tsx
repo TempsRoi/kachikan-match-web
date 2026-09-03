@@ -69,7 +69,7 @@ export default function Page() {
 
       <h2>9. お問い合わせ</h2>
       <p>
-        <a href="mailto:onseisakusei@gmail.com">onseisakusei@gmail.com</a>
+        <a href="mailto:futarishiru@gmail.com">futarishiru@gmail.com</a>
       </p>
       <nav className="legal-nav">
         <Link href="/commerce">特定商取引法に基づく表記</Link>

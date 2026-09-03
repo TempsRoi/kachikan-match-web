@@ -16,7 +16,7 @@ const rows = [
     "所在地・電話番号",
     "請求があった場合、遅滞なく開示します。開示を希望される方は、下記お問い合わせ先へご連絡ください。",
   ],
-  ["お問い合わせ", "onseisakusei@gmail.com"],
+  ["お問い合わせ", "futarishiru@gmail.com"],
   ["販売価格", "詳細レポート1件 480円（税込）"],
   [
     "商品代金以外の費用",
@@ -52,7 +52,7 @@ export default function Page() {
             <dt>{term}</dt>
             <dd>
               {term === "お問い合わせ" ? (
-                <a href="mailto:onseisakusei@gmail.com">{description}</a>
+                <a href="mailto:futarishiru@gmail.com">{description}</a>
               ) : (
                 description
               )}

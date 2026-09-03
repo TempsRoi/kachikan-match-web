@@ -16,9 +16,9 @@ export default function Page() {
       </p>
       <a
         className="contact-mail"
-        href="mailto:onseisakusei@gmail.com?subject=フタリシルへのお問い合わせ"
+        href="mailto:futarishiru@gmail.com?subject=フタリシルへのお問い合わせ"
       >
-        onseisakusei@gmail.com
+        futarishiru@gmail.com
       </a>
       <h2>ご記載いただきたい内容</h2>
       <ul>
