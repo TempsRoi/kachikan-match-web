@@ -1,9 +1,12 @@
-import Link from "next/link";
 import type { Metadata } from "next";
+import { LegalNav } from "@/components/LegalNav";
 
 export const metadata: Metadata = {
   title: "プライバシーポリシー",
-  alternates: { canonical: "/privacy" },
+  alternates: {
+    canonical: "/privacy",
+    languages: { ja: "/privacy", en: "/en/privacy" },
+  },
 };
 
 export default function Page() {
@@ -11,7 +14,7 @@ export default function Page() {
     <main className="legal">
       <p className="eyebrow">PRIVACY</p>
       <h1>プライバシーポリシー</h1>
-      <p className="legal-updated">制定日：2026年8月12日</p>
+      <p className="legal-updated">最終改定日：2026年9月5日</p>
       <p>
         運営者は、「フタリシル（価値観マッチ）」における利用者情報を、以下の方針に従って取り扱います。
       </p>
@@ -39,7 +42,7 @@ export default function Page() {
 
       <h2>3. 外部サービス・委託先</h2>
       <p>
-        本サービスは、提供に必要な範囲でFirebase（Google）、VercelおよびStripeを利用します。各事業者は、認証、データ保存、ホスティング、決済処理等のために情報を取り扱う場合があります。各サービスでの取扱いは、それぞれのプライバシーポリシー等にも従います。
+        本サービスは、提供に必要な範囲でFirebase（Google）、Vercel、StripeおよびLinkを利用します。各事業者は、認証、データ保存、ホスティング、決済処理、税務対応、不正利用防止および取引サポート等のために情報を取り扱う場合があります。各サービスでの取扱いは、それぞれのプライバシーポリシー等にも従います。
       </p>
 
       <h2>4. 第三者提供</h2>
@@ -71,11 +74,7 @@ export default function Page() {
       <p>
         <a href="mailto:futarishiru@gmail.com">futarishiru@gmail.com</a>
       </p>
-      <nav className="legal-nav">
-        <Link href="/commerce">特定商取引法に基づく表記</Link>
-        <Link href="/terms">利用規約</Link>
-        <Link href="/">トップへ戻る</Link>
-      </nav>
+      <LegalNav locale="ja" />
     </main>
   );
 }

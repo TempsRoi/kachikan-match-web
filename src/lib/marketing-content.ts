@@ -57,6 +57,8 @@ export type MarketingContent = {
   footer: {
     terms: string;
     privacy: string;
+    refunds: string;
+    cookies: string;
     commerce: string;
     contact: string;
     copyright: string;
@@ -187,6 +189,8 @@ const japanese: MarketingContent = {
   footer: {
     terms: "利用規約",
     privacy: "プライバシーポリシー",
+    refunds: "キャンセル・返金",
+    cookies: "Cookieポリシー",
     commerce: "特定商取引法に基づく表記",
     contact: "お問い合わせ",
     copyright: "© 2026 フタリシル",
@@ -320,10 +324,12 @@ const english: MarketingContent = {
     cta: "Start your game",
   },
   footer: {
-    terms: "Terms (Japanese)",
-    privacy: "Privacy (Japanese)",
-    commerce: "Seller information (Japanese)",
-    contact: "Contact (Japanese)",
+    terms: "Terms",
+    privacy: "Privacy",
+    refunds: "Refunds",
+    cookies: "Cookies",
+    commerce: "Seller disclosure",
+    contact: "Contact",
     copyright: "© 2026 FutariShiru",
   },
 };

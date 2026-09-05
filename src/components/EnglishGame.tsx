@@ -1091,9 +1091,17 @@ export function EnglishResult({ token }: { token: string }) {
                   : "Secure checkout unavailable"}
             </button>
             <p className="purchase-terms">
-              {englishCheckoutEnabled
-                ? "Secure one-time checkout is provided by Link. Applicable tax is calculated at checkout."
-                : "Managed Payments checkout is disabled in this environment."}
+              {englishCheckoutEnabled ? (
+                <>
+                  Secure one-time checkout is provided by Link. Applicable tax
+                  is calculated at checkout. By purchasing, you agree to the{" "}
+                  <Link href="/en/terms">Terms</Link>,{" "}
+                  <Link href="/en/refunds">Refund Policy</Link>, and{" "}
+                  <Link href="/en/commerce">Seller Disclosure</Link>.
+                </>
+              ) : (
+                "Managed Payments checkout is disabled in this environment."
+              )}
             </p>
           </section>
         )}

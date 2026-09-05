@@ -8,6 +8,7 @@ const stepImages = ["answer", "invite", "result"];
 export function MarketingHome({ locale }: { locale: Locale }) {
   const content = marketingContent[locale];
   const siteUrl = locale === "en" ? absoluteSiteUrl("/en") : SITE_ORIGIN;
+  const legalPrefix = locale === "en" ? "/en" : "";
   const structuredData = {
     "@context": "https://schema.org",
     "@graph": [
@@ -224,10 +225,14 @@ export function MarketingHome({ locale }: { locale: Locale }) {
           </span>
         </span>
         <div>
-          <Link href="/terms">{content.footer.terms}</Link>
-          <Link href="/privacy">{content.footer.privacy}</Link>
-          <Link href="/commerce">{content.footer.commerce}</Link>
-          <Link href="/contact">{content.footer.contact}</Link>
+          <Link href={`${legalPrefix}/terms`}>{content.footer.terms}</Link>
+          <Link href={`${legalPrefix}/privacy`}>{content.footer.privacy}</Link>
+          <Link href={`${legalPrefix}/refunds`}>{content.footer.refunds}</Link>
+          <Link href={`${legalPrefix}/cookies`}>{content.footer.cookies}</Link>
+          <Link href={`${legalPrefix}/commerce`}>
+            {content.footer.commerce}
+          </Link>
+          <Link href={`${legalPrefix}/contact`}>{content.footer.contact}</Link>
         </div>
         <small>{content.footer.copyright}</small>
       </footer>

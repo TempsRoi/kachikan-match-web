@@ -1,9 +1,12 @@
-import Link from "next/link";
 import type { Metadata } from "next";
+import { LegalNav } from "@/components/LegalNav";
 
 export const metadata: Metadata = {
   title: "利用規約",
-  alternates: { canonical: "/terms" },
+  alternates: {
+    canonical: "/terms",
+    languages: { ja: "/terms", en: "/en/terms" },
+  },
 };
 
 export default function Page() {
@@ -11,7 +14,7 @@ export default function Page() {
     <main className="legal">
       <p className="eyebrow">TERMS</p>
       <h1>利用規約</h1>
-      <p className="legal-updated">制定日：2026年8月12日</p>
+      <p className="legal-updated">最終改定日：2026年9月5日</p>
       <p>
         本規約は、運営者が提供する「フタリシル（価値観マッチ）」（以下「本サービス」）の利用条件を定めるものです。
       </p>
@@ -28,12 +31,13 @@ export default function Page() {
 
       <h2>3. 有料コンテンツ</h2>
       <p>
-        詳細レポートは1件480円（税込）の買い切りです。定期課金ではありません。支払いはStripeを利用したクレジットカード決済により行われ、決済完了後、対象の結果ページ上で直ちに提供されます。
+        詳細レポートは結果1件ごとの買い切りで、定期課金ではありません。日本語版は480円（税込）、英語版は4.99米ドルに決済画面で表示される適用税を加えた金額です。英語版のManaged
+        Payments取引ではLinkが販売者として決済を提供します。決済確認後、対象の結果ページ上で直ちに提供され、英語版は12カ月のWeb閲覧とPDFダウンロードを含みます。
       </p>
 
       <h2>4. キャンセル・返金</h2>
       <p>
-        デジタルコンテンツの性質上、提供開始後のお客様都合によるキャンセル・返金には応じません。ただし、重複決済、当サービスの不具合により購入した詳細レポートを閲覧できない場合、その他提供内容に不備がある場合は、状況を確認のうえ、返金または閲覧可能化の対応を行います。
+        デジタルコンテンツの性質上、提供開始後のお客様都合によるキャンセル・返金には原則として応じません。ただし、重複決済、当サービスの不具合により購入した詳細レポートを閲覧できない場合、提供内容に重大な不備がある場合、法令上必要な場合は、状況を確認のうえ返金または閲覧可能化の対応を行います。詳細はキャンセル・返金ポリシーをご確認ください。
       </p>
 
       <h2>5. 禁止事項</h2>
@@ -68,11 +72,7 @@ export default function Page() {
       <p>
         <a href="mailto:futarishiru@gmail.com">futarishiru@gmail.com</a>
       </p>
-      <nav className="legal-nav">
-        <Link href="/commerce">特定商取引法に基づく表記</Link>
-        <Link href="/privacy">プライバシーポリシー</Link>
-        <Link href="/">トップへ戻る</Link>
-      </nav>
+      <LegalNav locale="ja" />
     </main>
   );
 }

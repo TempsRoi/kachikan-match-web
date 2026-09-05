@@ -1,9 +1,13 @@
-import Link from "next/link";
 import type { Metadata } from "next";
+import { LegalNav } from "@/components/LegalNav";
+import { disclosureMailtoJa, SUPPORT_EMAIL } from "@/lib/legal";
 
 export const metadata: Metadata = {
   title: "お問い合わせ",
-  alternates: { canonical: "/contact" },
+  alternates: {
+    canonical: "/contact",
+    languages: { ja: "/contact", en: "/en/contact" },
+  },
 };
 
 export default function Page() {
@@ -16,9 +20,9 @@ export default function Page() {
       </p>
       <a
         className="contact-mail"
-        href="mailto:futarishiru@gmail.com?subject=フタリシルへのお問い合わせ"
+        href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("フタリシルへのお問い合わせ")}`}
       >
-        futarishiru@gmail.com
+        {SUPPORT_EMAIL}
       </a>
       <h2>ご記載いただきたい内容</h2>
       <ul>
@@ -29,11 +33,17 @@ export default function Page() {
       <p className="legal-caution">
         クレジットカード番号、セキュリティコード、パスワードは記載しないでください。
       </p>
-      <nav className="legal-nav">
-        <Link href="/commerce">特定商取引法に基づく表記</Link>
-        <Link href="/privacy">プライバシーポリシー</Link>
-        <Link href="/">トップへ戻る</Link>
-      </nav>
+      <h2>販売事業者情報の開示請求</h2>
+      <p>
+        購入前に、販売事業者の法定氏名、活動住所および確実に連絡可能な電話番号の開示を請求できます。購入実績や請求理由は必要ありません。
+      </p>
+      <a className="contact-mail" href={disclosureMailtoJa}>
+        事業者情報の開示を請求する
+      </a>
+      <p className="legal-caution">
+        購入の意思決定に先立って確認できるよう、遅滞なく電子メールで回答します。
+      </p>
+      <LegalNav locale="ja" />
     </main>
   );
 }

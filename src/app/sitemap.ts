@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { absoluteSiteUrl, SITE_ORIGIN } from "@/lib/site";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const legalLastModified = new Date("2026-08-12");
+  const legalLastModified = new Date("2026-09-05");
   return [
     {
       url: SITE_ORIGIN,
@@ -42,5 +42,20 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "yearly",
       priority: 0.2,
     },
+    ...[
+      "/refunds",
+      "/cookies",
+      "/en/commerce",
+      "/en/terms",
+      "/en/privacy",
+      "/en/refunds",
+      "/en/cookies",
+      "/en/contact",
+    ].map((path) => ({
+      url: absoluteSiteUrl(path),
+      lastModified: legalLastModified,
+      changeFrequency: "yearly" as const,
+      priority: 0.2,
+    })),
   ];
 }

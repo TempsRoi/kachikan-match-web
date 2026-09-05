@@ -1179,7 +1179,8 @@ export function Result({ token }: { token: string }) {
               MATCH」等と表示されます。
               <br />
               <Link href="/commerce">販売条件</Link>・
-              <Link href="/terms">利用規約</Link>
+              <Link href="/terms">利用規約</Link>・
+              <Link href="/refunds">キャンセル・返金</Link>
               に同意のうえ購入してください。
             </p>
             {error && <p className="error-message">{error}</p>}
