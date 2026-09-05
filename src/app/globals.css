@@ -589,11 +589,22 @@ footer div {
   border-radius: 10px;
   font: inherit;
   cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease,
+    transform 120ms ease;
 }
 .option.active {
   border-color: var(--green);
-  background: #edf4ef;
-  color: var(--green);
+  background: var(--green);
+  color: #fff;
+  font-weight: 700;
+  transform: scale(0.99);
+}
+.option:disabled {
+  cursor: default;
+  opacity: 1;
 }
 .option:focus-visible {
   outline: 2px solid var(--green);

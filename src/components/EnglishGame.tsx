@@ -207,6 +207,7 @@ export function EnglishPlayGame({ token }: { token: string }) {
   const [role, setRole] = useState<"creator" | "partner">("creator");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [answering, setAnswering] = useState(false);
   const predictionQuestions = englishQuestions.filter(
     (question) => question.prediction,
   );
@@ -329,12 +330,19 @@ export function EnglishPlayGame({ token }: { token: string }) {
   }
 
   async function choose(choice: number) {
+    if (answering) return;
+    setAnswering(true);
     const values = [...((current[activeField] as number[] | undefined) || [])];
     values[index] = choice;
     const next = { ...current, [activeField]: values };
     setSaved(next);
     localStorage.setItem(gameKey(token), JSON.stringify(next));
-    if (index + 1 < total) return setIndex(index + 1);
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 220));
+    if (index + 1 < total) {
+      setAnswering(false);
+      setIndex(index + 1);
+      return;
+    }
     if (phase === "answer") {
       const ownAnswers =
         role === "creator" ? next.answers : next.partnerAnswers || [];
@@ -342,6 +350,7 @@ export function EnglishPlayGame({ token }: { token: string }) {
         role === "creator" ? next.creator : next.partner,
         ownAnswers,
       );
+      setAnswering(false);
       setPhase("predict");
       setIndex(0);
       return;
@@ -367,6 +376,7 @@ export function EnglishPlayGame({ token }: { token: string }) {
         });
       } catch {
         setSaving(false);
+        setAnswering(false);
         setError("We couldn't save your answers. Please try again.");
         return;
       }
@@ -403,6 +413,7 @@ export function EnglishPlayGame({ token }: { token: string }) {
                 event.currentTarget.blur();
                 void choose(optionIndex);
               }}
+              disabled={answering}
               aria-pressed={selectedChoice === optionIndex}
             >
               {String.fromCharCode(65 + optionIndex)}　{option.label}
@@ -413,7 +424,7 @@ export function EnglishPlayGame({ token }: { token: string }) {
           <button
             className="back-button"
             onClick={goBack}
-            disabled={phase === "answer" && index === 0}
+            disabled={answering || (phase === "answer" && index === 0)}
           >
             ← Previous question
           </button>

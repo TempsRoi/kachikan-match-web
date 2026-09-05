@@ -188,6 +188,7 @@ export function PlayGame({ token }: { token: string }) {
   const [role, setRole] = useState<"creator" | "partner">("creator");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [answering, setAnswering] = useState(false);
   useEffect(() => {
     const requestedRole =
       new URLSearchParams(location.search).get("role") === "partner"
@@ -292,21 +293,27 @@ export function PlayGame({ token }: { token: string }) {
     }
   }
   async function choose(choice: number) {
+    if (answering) return;
+    setAnswering(true);
     const arr = [...((current[activeField] as number[] | undefined) || [])];
     arr[idx] = choice;
     const next = { ...current, [activeField]: arr };
     setSaved(next);
     localStorage.setItem(key(token), JSON.stringify(next));
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 220));
     const total =
       phase === "answer" ? activeQuestions.length : predictionQs.length;
-    if (idx + 1 < total) setIdx(idx + 1);
-    else if (phase === "answer") {
+    if (idx + 1 < total) {
+      setAnswering(false);
+      setIdx(idx + 1);
+    } else if (phase === "answer") {
       if (savedVersion(next) === SCORING_VERSION) {
         saveSelfProfile(
           role === "creator" ? next.creator : next.partner,
           role === "creator" ? next.answers : next.partnerAnswers || [],
         );
       }
+      setAnswering(false);
       setPhase("predict");
       setIdx(0);
     } else {
@@ -331,6 +338,7 @@ export function PlayGame({ token }: { token: string }) {
           });
         } catch (cause) {
           setSaving(false);
+          setAnswering(false);
           setError(
             cause instanceof Error
               ? cause.message
@@ -371,6 +379,7 @@ export function PlayGame({ token }: { token: string }) {
                 event.currentTarget.blur();
                 void choose(i);
               }}
+              disabled={answering}
               aria-pressed={selectedChoice === i}
             >
               {String.fromCharCode(65 + i)}　{option.label}
@@ -381,7 +390,7 @@ export function PlayGame({ token }: { token: string }) {
           <button
             className="back-button"
             onClick={goBack}
-            disabled={phase === "answer" && idx === 0}
+            disabled={answering || (phase === "answer" && idx === 0)}
           >
             ← 前の質問へ
           </button>
