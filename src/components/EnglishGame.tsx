@@ -394,12 +394,15 @@ export function EnglishPlayGame({ token }: { token: string }) {
             : question.question}
         </h1>
         {phase === "predict" && <p>{question.question}</p>}
-        <div className="options">
+        <div className="options" key={`${phase}-${index}`}>
           {question.options.map((option, optionIndex) => (
             <button
               className={`option ${selectedChoice === optionIndex ? "active" : ""}`}
               key={option.label}
-              onClick={() => choose(optionIndex)}
+              onClick={(event) => {
+                event.currentTarget.blur();
+                void choose(optionIndex);
+              }}
               aria-pressed={selectedChoice === optionIndex}
             >
               {String.fromCharCode(65 + optionIndex)}　{option.label}

@@ -362,12 +362,15 @@ export function PlayGame({ token }: { token: string }) {
             : q.question}
         </h1>
         {phase === "predict" && <p>{q.question}</p>}
-        <div className="options">
+        <div className="options" key={`${phase}-${idx}`}>
           {q.options.map((option, i) => (
             <button
               className={`option ${selectedChoice === i ? "active" : ""}`}
               key={option.label}
-              onClick={() => choose(i)}
+              onClick={(event) => {
+                event.currentTarget.blur();
+                void choose(i);
+              }}
               aria-pressed={selectedChoice === i}
             >
               {String.fromCharCode(65 + i)}　{option.label}
